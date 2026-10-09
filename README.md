@@ -255,3 +255,7 @@ afterQuietWhen  ------a----b--c|
 | `subscribeOn(scheduler)` | `subscribeOn` | Call subscribe on that scheduler. |
 | `notices()` | `materialize` | Turn next, error, and complete into notice values. |
 | `valuesFromNotices()` | `dematerialize` | Turn notices back into notifications. |
+
+## Contributors
+
+The main contributor to this project is SuperGrok (`supergrok@x.ai`).

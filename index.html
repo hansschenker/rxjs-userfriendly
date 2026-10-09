@@ -6,37 +6,35 @@
   <title>RxJS user-friendly names</title>
   <style>
     :root { color-scheme: light dark; --line: #ccc; --muted: #666; }
-    body { font: 16px/1.45 system-ui, sans-serif; margin: 2rem auto; max-width: 52rem; padding: 0 1rem; }
-    h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+    body { font: 16px/1.45 system-ui, sans-serif; margin: 1rem auto; max-width: 52rem; padding: 0 1rem; }
+    h1 { font-size: 1.6rem; margin: 0.5rem 0 0.25rem; }
     p { color: var(--muted); }
-    #q { width: 100%; box-sizing: border-box; font: inherit; padding: 0.6rem 0.7rem; margin: 1rem 0; }
+    .intro { margin: 0; }
+    #q { width: 100%; box-sizing: border-box; font: inherit; padding: 0.5rem 0.7rem; margin: 0.6rem 0; }
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; vertical-align: top; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--line); }
     code { font-family: ui-monospace, monospace; }
-    #count { font-size: 0.9rem; }
-    .grammar { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
-    .grammar .hint { font-size: 0.9rem; margin: 0 0 0.4rem; }
-    .tokens { height: 20rem; overflow: auto; border: 1px solid var(--line); padding: 0.3rem 0.6rem; }
-    .tokens label { display: block; padding: 0.1rem 0.2rem; cursor: pointer; }
+    #count { font-size: 0.9rem; margin: 0.6rem 0; }
+    .grammar { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1.5rem; align-items: start; }
+    .tokens { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, auto); column-gap: 1.5rem; line-height: 1.3; border: 1px solid var(--line); padding: 0.3rem 0.6rem; }
+    .tokens label { padding: 0.05rem 0.2rem; cursor: pointer; }
     .tokens label:hover { background: rgba(127, 127, 127, 0.12); }
     .tokens input { width: auto; margin: 0 0.4rem 0 0; padding: 0; vertical-align: middle; }
-    button { font: inherit; padding: 0.3rem 0.6rem; margin-top: 0.5rem; }
+    button { font: inherit; padding: 0.3rem 0.6rem; }
     #picked { margin: 0; padding-left: 1.1rem; }
     #picked li { margin: 0.2rem 0; }
     #picked .meaning { color: var(--muted); }
-    @media (max-width: 40rem) { .grammar { grid-template-columns: 1fr; } }
+    .credits { font-size: 0.85rem; margin-top: 2rem; }
+    @media (max-width: 40rem) { .grammar { grid-template-columns: 1fr; } .tokens { grid-template-columns: repeat(2, auto); } }
   </style>
 </head>
 <body>
   <h1>RxJS user-friendly names</h1>
-  <p>The main contributor to this project is SuperGrok. Claude Fable 5.1 contributed the extended grammar and the token filter. Search matches the friendly name, the RxJS operator, and the description. Pick grammar tokens to narrow the list to the names built from them.</p>
+  <p class="intro">Search names, operators, and descriptions, or tick grammar tokens to list every name that uses any of them.</p>
   <input id="q" type="search" placeholder="Search names" autofocus>
   <div class="grammar">
-    <div>
-      <p class="hint">Grammar tokens. Tick one or more. The list shows every name that uses any ticked token.</p>
-      <div id="tokens" class="tokens"></div>
-      <button id="clear" type="button">Clear tokens</button>
-    </div>
+    <div id="tokens" class="tokens"></div>
+    <button id="clear" type="button">Clear tokens</button>
     <ul id="picked"></ul>
   </div>
   <p id="count"></p>
@@ -44,6 +42,7 @@
     <thead><tr><th>Name</th><th>Operator</th><th>Description</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
+  <p class="credits">The main contributor to this project is SuperGrok. Claude Fable 5.1 contributed the extended grammar and the token filter.</p>
   <script>
     const names = [
       ["firstEvery(ms)","throttleTime","Emit the first value, then ignore for ms."],

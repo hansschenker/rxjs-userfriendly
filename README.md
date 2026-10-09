@@ -8,18 +8,300 @@ The main contributor to this project is SuperGrok.
 
 ## Grammar
 
-- `Every` is a duration you chose.
-- `When` is a signal that ends or triggers it.
-- `first` and `last` are which value survives.
-- `after` shifts a value, or waits for a signal before values pass.
-- `with` adds data. It does not drop values.
+A name is a root, zero or more suffix tokens, and an argument. Every token has exactly one meaning and lives in exactly one slot. Every slot answers one question of the operator policy model in `rxjs-policy-debugger`, so the name states the policy and nothing else.
+
+Status: extended grammar, under review. The Names table below still uses the earlier grammar. The renames the grammar implies are listed under "Consequences" and are not applied yet.
+
+The closed token list. One line per token. The tables that follow give each token its policy, its argument, and the names it builds.
+
+Roots:
+
+- `first` and `last` are which value survives. `last` is the latest so far.
+- `poll` emits the latest value on a clock or a signal, if one arrived.
+- `afterQuiet` emits the latest value once the source has been quiet.
+- `later` shifts each value in time. It drops nothing.
+- `after` waits for a signal before values pass.
+- `until` completes the stream when a signal fires once.
+- `fail` errors the stream.
+- `with` adds data to each value. It does not drop values. The suffix names the data: `Gap`, `Time`, `Previous`, `Latest`.
 - `batch` emits an array when the span closes.
 - `span` emits an observable while the span is open.
+- `run*` maps each value to inner work and flattens it. The suffix is the concurrency policy.
+- `flatten*` subscribes to the streams the source already emits. Same suffixes as `run*`.
+- `accumulate` folds values into state and emits the state after each value.
+- `fold`, `collect`, `count`, `least`, `greatest` fold everything and emit once, at completion.
+- `as` replaces each value.
+- `keep` passes values that match.
+- `only*` passes only this: `onlyFirst`, `onlyFinal`, `onlyEnd`.
+- `peek` looks and changes nothing.
+- `on*` runs a callback at a lifecycle point: `onEnd`, `onError`.
 - `shared` starts on the first subscriber and stops when the last one leaves.
 - `connected` does nothing until `connect()`, and does not stop when subscribers leave.
-- `run*` is the flattening policy: what happens to the previous inner subscription.
+- `begin` and `finish` add literal values before the first value or after the last.
+- `then` subscribes to the next source after this one ends.
+- `skip`, `take`, `retry`, `repeat`, `groupBy`, `isEmpty`, `observeOn`, `subscribeOn` keep their technical names.
 
-Each name wraps one operator. `lastEvery` stays on `auditTime` and does not also mean trailing `throttleTime`.
+Trigger and time suffixes:
+
+- `Every` is a duration you chose, recurring. `EveryFrame` is the animation frame.
+- `Of` is a count of values.
+- `On` is one external signal. Every firing triggers.
+- `When` is a function you supply. It returns a fresh signal per value or span, and that signal fires once.
+- `Until` is one external signal. It fires once and ends the stream.
+- `Between` opens on a signal and closes on the signal made for that opening.
+- `While` lasts as long as a predicate holds.
+- `After` waits for a duration or a signal first. Same meaning as the root `after`.
+- `Quiet` is a duration with no source value.
+
+Concurrency suffixes, one per policy of `rxjs-policy-debugger`:
+
+- `Concurrent` lets inners overlap. Nothing is cancelled. `allowConcurrent`.
+- `InOrder` runs one inner at a time and queues the rest. `queueWhileBusy`.
+- `Latest` runs the newest inner and cancels the previous one. `keepLatest`.
+- `UnlessBusy` runs the first inner and drops new values while it runs. `ignoreWhileBusy`.
+- `Recursive` feeds every output back in.
+- `Combined` and `Paired` are the join policies of `flatten`: latest of each, or by index.
+
+Sharing suffixes:
+
+- `Last` replays the latest value to late subscribers.
+- `Recent` replays the last `n`, or only those younger than `ms`.
+- `Final` is the value at completion.
+- `Linger` keeps the upstream for `ms` after the last subscriber leaves.
+- `Inside` builds the pipeline that uses the shared source.
+
+Ending tokens:
+
+- `End` is the end of the subscription: complete, error, or unsubscribe.
+- `IfEmpty` is a source that completed with no value.
+- `IfQuiet` is no value within `ms`.
+
+Comparison suffixes:
+
+- `Same` is equal to the previous value, or to another source.
+- `Seen` is equal to any earlier value.
+- `By` compares or groups by a key.
+- `Match` satisfies a predicate.
+
+Position rule, the only one: prefix `with` attaches data, suffix `With` joins another source or literal values.
+
+### Slots
+
+| Slot | Policy question it answers | Token group |
+| --- | --- | --- |
+| Root | Value and Cardinality: what comes out, and how many per input | Roots |
+| Trigger suffix | Trigger and Time: what causes output, and when | Trigger and time |
+| Concurrency suffix | Concurrency and Cancellation: what happens to inner work that is still running | Concurrency |
+| Sharing root and suffix | Sharing, Connection, Disconnection, Replay, Reset | Sharing |
+| Ending token | Termination: what happens on complete and on error | Ending |
+| Comparison suffix | Value and Cardinality: which values count as the same, or match | Comparison |
+| Argument | Source and Initialization: what feeds the operator, and the state it starts with | Arguments |
+
+Type policies are not in names. TypeScript carries them.
+
+### Roots
+
+A root in lower case is the first word. The same word in upper case is a suffix with the same meaning (`last` in `lastEvery`, `Last` in `sharedLast`).
+
+| Root | Means | Names |
+| --- | --- | --- |
+| `first` | the first value of a window or race survives | `firstEvery`, `firstWhen`, `firstAndLastEvery`, `firstMatch`, `firstToEmit`, `onlyFirst` |
+| `last` | the latest value so far survives | `lastEvery`, `lastWhen`, `lastEveryFrame`, `sharedLast`, `connectedLast` |
+| `poll` | on a clock or a signal, emit the latest value if one arrived | `pollEvery`, `pollOn` |
+| `afterQuiet` | emit the latest value once the source has been quiet | `afterQuiet`, `afterQuietWhen` |
+| `later` | shift each value in time, drop nothing | `later`, `laterWhen` |
+| `after` | values pass only after a signal | `after` |
+| `until` | the stream completes when a signal fires once | `until` |
+| `fail` | error the stream | `failIfQuiet`, `failIfEmpty` |
+| `with` (prefix) | attach data to each value, drop nothing | `withGap`, `withTime`, `withPrevious`, `withLatest` |
+| `batch` | collect values, emit one array when the span closes | `batchEvery`, `batchOf`, `batchOn`, `batchWhen`, `batchBetween` |
+| `span` | split values, emit one observable while the span is open | `spanEvery`, `spanOf`, `spanOn`, `spanWhen`, `spanBetween` |
+| `run` | map each value to inner work and flatten it | `runConcurrent`, `runInOrder`, `runLatest`, `runUnlessBusy`, `runRecursive` |
+| `flatten` | the source already emits streams; subscribe to them | `flattenConcurrent`, `flattenInOrder`, `flattenLatest`, `flattenUnlessBusy`, `flattenCombined`, `flattenPaired` |
+| `accumulate` | fold values into state, emit the state after each value | `accumulate`, `accumulateConcurrent`, `accumulateLatest` |
+| `fold`, `collect`, `count`, `least`, `greatest` | aggregate roots: fold everything, emit once at completion | `fold`, `collect`, `count`, `least`, `greatest` |
+| `as` | replace each value | `as`, `asNotices` |
+| `keep` | pass values that match | `keep` |
+| `only` | only this passes | `onlyFirst`, `onlyFinal`, `onlyEnd` |
+| `peek` | look, change nothing | `peek` |
+| `on` (prefix) | run a callback at a lifecycle point | `onEnd`, `onError` |
+| `shared` | one upstream; starts with the first subscriber, stops with the last | `shared`, `sharedLast`, `sharedRecent`, `sharedFinal`, `sharedLinger`, `sharedInside` |
+| `connected` | one upstream; nothing until `connect()`, does not stop when subscribers leave | `connected`, `connectedLast`, `connectedRecent`, `connectedFinal` |
+| `begin`, `finish` | literal values before the first value, or after the last | `beginWith`, `finishWith` |
+| `then` | after this source ends, subscribe to the next one | `then`, `thenEvenIfFailed` |
+| `skip`, `take`, `retry`, `repeat`, `groupBy`, `isEmpty`, `observeOn`, `subscribeOn` | kept technical: already plain English and grammar-conform | `skip`, `skipLast`, `skipWhile`, `skipSame`, `skipSameBy`, `skipSeen`, `skipSeenBy`, `take`, `takeLast`, `takeWhile`, `retry`, `retryAfter`, `repeat`, `repeatAfter` |
+
+Suffix `With` is the one position rule: prefix `with` attaches data, suffix `With` joins another source or literal values to this one (`alongWith`, `pairedWith`, `combinedWith`, `beginWith`, `finishWith`).
+
+### Trigger and time
+
+| Token | Argument | Means | Names |
+| --- | --- | --- | --- |
+| `Every` | `ms` | a fixed clock you chose, recurring | `firstEvery`, `lastEvery`, `pollEvery`, `batchEvery`, `spanEvery` |
+| `EveryFrame` | none | the animation frame is the clock | `lastEveryFrame` |
+| `Of` | `n` | a count of values | `batchOf`, `spanOf` |
+| `On` | `signal$` | one external signal; every firing triggers | `pollOn`, `batchOn`, `spanOn` |
+| `When` | `fn` | you make the signal, fresh for each value or span; it fires once | `firstWhen`, `lastWhen`, `afterQuietWhen`, `laterWhen`, `batchWhen`, `spanWhen` |
+| `Until` | `signal$` | one external signal; fires once and ends the stream | `until` |
+| `Between` | `open$, fn` | opens on `open$`, closes on the signal `fn` makes for that opening; overlaps stay overlaps | `batchBetween`, `spanBetween` |
+| `While` | `pred` | as long as `pred` holds | `takeWhile`, `skipWhile` |
+| `After` | `ms` or `fn` | wait this long, or for this signal, first; same meaning as the root `after` | `retryAfter`, `repeatAfter` |
+| `Quiet` | `ms` | `ms` with no source value | `afterQuiet`, `failIfQuiet`, `ifQuiet` |
+
+`On`, `When`, `Until` are three different shapes, not three spellings. `On` is one signal that keeps firing. `When` is a function you supply, called per value or per span, returning a signal that fires once. `Until` is one signal that fires once and ends everything. `throttle`, `audit`, `debounce`, `delayWhen`, `bufferWhen`, `windowWhen` all take a function, so they are all `When`.
+
+### Concurrency
+
+The four policies of `rxjs-policy-debugger`, as suffixes. The same four words serve every family that has a concurrency axis: `run*`, `flatten*`, `accumulate*`.
+
+| Token | Inner work | Cancellation | Policy vocabulary | Names |
+| --- | --- | --- | --- | --- |
+| `Concurrent` | all inners may overlap | nothing is cancelled | `allowConcurrent` | `runConcurrent`, `flattenConcurrent`, `accumulateConcurrent` |
+| `InOrder` | one at a time; new values wait in a queue | nothing is cancelled, order is kept | `queueWhileBusy` | `runInOrder`, `flattenInOrder` |
+| `Latest` | one at a time; always the newest | a new value cancels the previous inner | `keepLatest` | `runLatest`, `flattenLatest`, `accumulateLatest` |
+| `UnlessBusy` | one at a time; the first | new values are dropped while busy | `ignoreWhileBusy` | `runUnlessBusy`, `flattenUnlessBusy` |
+| `Recursive` | every output is fed back in, concurrently | nothing is cancelled | none | `runRecursive` |
+| `Combined`, `Paired` | join policies for `flatten`: latest of each, or by index | none | none | `flattenCombined`, `flattenPaired` |
+
+### Sharing
+
+| Token | Policy | Means | Names |
+| --- | --- | --- | --- |
+| `shared` | Sharing, Connection, Disconnection, Reset | one upstream; connects on the first subscriber, disconnects on the last, resets after | `shared` |
+| `connected` | Sharing, Connection | one upstream; connects on `connect()`, never disconnects on its own | `connected` |
+| `Last` | Replay | late subscribers get the latest value, then live values | `sharedLast`, `connectedLast(seed)` |
+| `Recent` | Replay | late subscribers get the last `n`; with `ms`, only values younger than `ms` | `sharedRecent(n)`, `sharedRecent(n, ms)`, `connectedRecent` |
+| `Final` | Replay, Termination | everyone gets only the value at completion | `sharedFinal`, `connectedFinal` |
+| `Linger` | Disconnection | keep the upstream `ms` after the last subscriber leaves | `sharedLinger(ms)` |
+| `Inside` | Connection | `fn` builds the pipeline that uses the shared source; connects on subscribe | `sharedInside(fn)` |
+
+### Ending
+
+| Token | Means | Names |
+| --- | --- | --- |
+| `Final` | the value at completion | `onlyFinal`, `finalOfEach`, `sharedFinal`, `connectedFinal` |
+| `End` | the end of the subscription: complete, error, or unsubscribe | `onEnd`, `onlyEnd` |
+| `IfEmpty` | the source completed with no value | `ifEmpty(value)`, `failIfEmpty()` |
+| `IfQuiet` | no value arrived within `ms` | `failIfQuiet(ms)`, `ifQuiet(ms, other$)` |
+| `onError` | the error is replaced by another stream | `onError(fn)` |
+| `then` | this source ended, the next one starts | `then`, `thenEvenIfFailed` |
+
+Aggregate roots (`fold`, `collect`, `count`, `least`, `greatest`) and `onlyFinal`, `takeLast`, `skipLast` emit at completion by definition. No suffix says so.
+
+### Comparison
+
+| Token | Argument | Means | Names |
+| --- | --- | --- | --- |
+| `Same` | none, or `other$` | equal to the previous value, or to another source | `skipSame`, `skipSameBy`, `sameAs` |
+| `Seen` | none | equal to any earlier value | `skipSeen`, `skipSeenBy` |
+| `By` | `key` | compare or group by a key | `skipSameBy`, `skipSeenBy`, `groupBy` |
+| `Match` | `pred` | satisfies a predicate | `firstMatch`, `firstMatchIndex`, `allMatch` |
+
+### Arguments
+
+| Argument | Shape | Policy |
+| --- | --- | --- |
+| `ms` | milliseconds; `later` also takes a `Date` | Time |
+| `n` | a count | Cardinality |
+| `signal$` | an observable; only its timing matters, never its values | Trigger |
+| `fn` | a function; what it returns follows the root: inner work for `run*`, a closing signal for `When`, a replacement for `as`, a handler for `on*`, the next state for `accumulate` and `fold` | Source |
+| `pred` | `(value) => boolean` | Cardinality |
+| `key` | `(value) => key`, or a property name | Value |
+| `seed` | the state before the first value | Initialization |
+| `other$` | one other source | Source |
+| `sources` | several sources | Source |
+| `open$` | the opening signal of `Between` | Trigger |
+| `value`, `...values` | literal values | Source |
+| `scheduler` | only with the kept technical names `observeOn`, `subscribeOn` | Time |
+
+### Rules
+
+1. One token, one meaning. The only position rule is prefix `with` versus suffix `With`.
+2. One name, one policy. Argument type or arity picks the RxJS operator: `sharedRecent(n)` and `sharedRecent(n, ms)`, `retryAfter(ms)` and `retryAfter(fn)`.
+3. A technical name is kept when it is already plain English and obeys the grammar.
+4. Aggregate roots emit once, at completion. No suffix.
+5. A friendly name never hides a real difference. `lastEvery` stays on `auditTime` and does not also mean trailing `throttleTime`.
+6. Scope is the pipeable operators of RxJS 7.8. Deprecated operators get no name; their modern replacement does.
+
+### Alignment with the policy vocabulary
+
+The canonical vocabulary operators of `rxjs-policy-debugger` and the friendly names say the same policy.
+
+| Policy vocabulary | RxJS | Friendly name |
+| --- | --- | --- |
+| `allowConcurrent` | `mergeMap` | `runConcurrent(fn)` |
+| `queueWhileBusy` | `concatMap` | `runInOrder(fn)` |
+| `keepLatest` | `switchMap` | `runLatest(fn)` |
+| `ignoreWhileBusy` | `exhaustMap` | `runUnlessBusy(fn)` |
+| `recoverAsAction` | `catchError` | `onError(err => of(action))` |
+| `startWithInitial` | `startWith` | `beginWith(initial)` |
+
+The suffix grammar of `rxjs-operator-renaming` maps token for token: `Time` is `Every`, `Count` is `Of`, `On` is `On`, `When` is `When`, `Until` is `Until`, `Toggle` is `Between`, `While` is `While`, `By` is `By`, `With` is `With`, `Map` is `run*`, `All` is `flatten*`, `Scan` is `accumulate*`, `OnComplete` is rule 4 and `Final`. Its four roots `merge`, `concat`, `switch`, `exhaust` are the four concurrency suffixes here.
+
+### Decisions to review
+
+1. `On` for a repeating signal, `When` for a function, `Until` for a terminal signal. This matches `rxjs-operator-renaming` and the RxJS names `bufferWhen`, `windowWhen`, `delayWhen`. The alternative keeps `When` for both and lets the argument type pick: fewer renames, but the name no longer shows which shape it takes.
+2. `accumulate` for `scan`. `running` is one letter away from `run`, and `mergeScan` would become `runningConcurrent` next to `runConcurrent`.
+3. `forkJoin` is the only creation function in the list. Keep it as `finalOfEach(sources)`, or move creation functions to their own section.
+4. Rule 4 says aggregates carry no suffix. The policy template advises the opposite: add `OnComplete` to every name that hides completion. That would give `foldFinal`, `countFinal`, `collectFinal`.
+5. `then` and `as` are short and read well. `then` suggests a promise, and `as` is a TypeScript keyword in type positions. Keep, or widen to `thenWith` and `asEach`.
+6. `sharedLinger`, `sharedInside`, `thenEvenIfFailed`, `finalOfEach` are new words for rare operators. Better words welcome.
+
+### Consequences (not applied)
+
+Renames the grammar implies for the Names table:
+
+| Current | Proposed | Why |
+| --- | --- | --- |
+| `firstWhen(signal$)` | `firstWhen(fn)` | `throttle` takes a per-value function, not a signal |
+| `lastWhen(signal$)` | `lastWhen(fn)` | `audit` takes a per-value function |
+| `pollWhen(signal$)` | `pollOn(signal$)` | one repeating signal is `On` |
+| `batchWhen(signal$)` | `batchOn(signal$)` | same |
+| `spanWhen(signal$)` | `spanOn(signal$)` | same |
+| `batchUntil(fn)` | `batchWhen(fn)` | a fresh closer per batch is `When`; `Until` ends the stream |
+| `spanUntil(fn)` | `spanWhen(fn)` | same |
+| `lastOnFrame()` | `lastEveryFrame()` | the frame is the clock; `On` is a signal |
+| `laterBy(ms)` | `later(ms)` | `By` is a key selector |
+| `failAfter(ms)` | `failIfQuiet(ms)` | `After` means wait; the missing value is `Quiet`; pairs with `failIfEmpty` |
+| `sharedUntilQuiet(ms)` | `sharedLinger(ms)` | no subscribers is not `Quiet`; a duration is not `Until` |
+| `runAll(fn)` | `runConcurrent(fn)` | the policy word; `All` meant two things |
+| `again(fn)` | `runRecursive(fn)` | `expand` is `run` with feedback; `again` sounds like `retry` |
+| `running(fn, seed)` | `accumulate(fn, seed)` | decision 2 |
+| `onlyLast()` | `onlyFinal()` | `Last` is the latest so far; `Final` is at completion |
+| `dropValues()` | `onlyEnd()` | joins `only*`; `drop` was a one-off root |
+| `latestOf(other$)` | `combinedWith(other$)` | `Of` is a count; joins `*With` |
+| `whenAllDone(others)` | `finalOfEach(sources)` | `When` is a token; decision 3 |
+| `emitOn(scheduler)` | `observeOn(scheduler)` | kept technical, like `subscribeOn` |
+| `notices()` | `asNotices()` | `as` is the replace root |
+| `valuesFromNotices()` | `fromNotices()` | the inverse of `asNotices` |
+
+Names the grammar generates for operators not yet in the list:
+
+| Name | Operator |
+| --- | --- |
+| `allMatch(pred)` | `every` |
+| `firstMatchIndex(pred)` | `findIndex` |
+| `isEmpty()` | `isEmpty` |
+| `sameAs(other$)` | `sequenceEqual` |
+| `skipSeenBy(key)` | `distinct(key)` |
+| `firstAndLastWhen(fn)` | `throttle(fn, { trailing: true })` |
+| `flattenConcurrent()` | `mergeAll` |
+| `flattenInOrder()` | `concatAll` |
+| `flattenLatest()` | `switchAll` |
+| `flattenUnlessBusy()` | `exhaustAll` |
+| `flattenCombined()` | `combineLatestAll` |
+| `flattenPaired()` | `zipAll` |
+| `accumulateConcurrent(fn, seed)` | `mergeScan` |
+| `accumulateLatest(fn, seed)` | `switchScan` |
+| `sharedInside(fn)` | `connect` |
+| `thenEvenIfFailed(other$)` | `onErrorResumeNextWith` |
+| `ifQuiet(ms, other$)` | `timeout({ each: ms, with: () => other$ })` |
+| `retryAfter(ms)`, `retryAfter(fn)` | `retry({ delay })` |
+| `repeatAfter(ms)`, `repeatAfter(fn)` | `repeat({ delay })` |
+
+Excluded, deprecated in RxJS 7 and gone in 8: `pluck`, `mapTo`, `concatMapTo`, `mergeMapTo`, `switchMapTo`, `exhaust`, `flatMap`, `combineAll`, `publish`, `publishBehavior`, `publishLast`, `publishReplay`, `multicast`, `refCount`, `retryWhen`, `repeatWhen`, `timeoutWith`, and the operator forms of `combineLatest`, `concat`, `merge`, `race`, `zip`, `partition`, `onErrorResumeNext`. The `connected*` names describe `connectable()` recipes, not `publish*`.
+
+Deliberately unnamed: trailing-only `throttleTime`. It is close to `lastEvery` but not the same, and a name that hides the difference is worse than the original.
 
 ## buffer*, window*, and debounce*
 

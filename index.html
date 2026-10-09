@@ -253,6 +253,7 @@
     const picked = document.querySelector("#picked");
     const clear = document.querySelector("#clear");
     const boxes = [];
+    const order = []; // token indexes in the order they were ticked
 
     const sorted = tokens.map((t, i) => ({ t, i }));
     sorted.sort((a, b) => a.t.label.localeCompare(b.t.label, "en", { sensitivity: "base" }));
@@ -268,7 +269,7 @@
     }
 
     function selectedTokens() {
-      return boxes.filter(b => b.checked).map(b => tokens[Number(b.value)]);
+      return order.map(i => tokens[i]);
     }
 
     function show() {
@@ -306,9 +307,18 @@
       count.textContent = found.length + " of " + names.length + (chosen.length ? ", using " + chosen.map(t => t.label).join(" or ") : "");
     }
 
-    box.addEventListener("change", show);
+    box.addEventListener("change", event => {
+      const b = event.target;
+      if (b.tagName !== "INPUT") return;
+      const i = Number(b.value);
+      const at = order.indexOf(i);
+      if (b.checked && at < 0) order.push(i);
+      if (!b.checked && at >= 0) order.splice(at, 1);
+      show();
+    });
     clear.addEventListener("click", () => {
       for (const b of boxes) b.checked = false;
+      order.length = 0;
       show();
     });
     q.addEventListener("input", show);

@@ -278,7 +278,9 @@
       const found = names
         .map(row => ({ row, hits: chosen.filter(t => uses(words(row[0]), t)) }))
         .filter(({ row, hits }) => row.join(" ").toLowerCase().includes(needle) && (chosen.length === 0 || hits.length > 0));
-      found.sort((a, b) => b.hits.length - a.hits.length || a.row[0].localeCompare(b.row[0]));
+      // Group by tick order: a name sits with the earliest ticked token it uses.
+      const rank = ({ hits }) => (hits.length ? chosen.indexOf(hits[0]) : 0);
+      found.sort((a, b) => rank(a) - rank(b) || a.row[0].localeCompare(b.row[0]));
       rows.replaceChildren(...found.map(({ row: [name, operator, summary] }) => {
         const tr = document.createElement("tr");
         for (const text of [name, operator, summary]) {

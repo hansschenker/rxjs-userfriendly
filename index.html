@@ -17,8 +17,6 @@
     .grammar { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
     .grammar .hint { font-size: 0.9rem; margin: 0 0 0.4rem; }
     .tokens { height: 20rem; overflow: auto; border: 1px solid var(--line); padding: 0.3rem 0.6rem; }
-    .tokens .group { font-weight: 600; margin: 0.5rem 0 0.1rem; }
-    .tokens .group:first-child { margin-top: 0; }
     .tokens label { display: block; padding: 0.1rem 0.2rem; cursor: pointer; }
     .tokens label:hover { background: rgba(127, 127, 127, 0.12); }
     .tokens input { width: auto; margin: 0 0.4rem 0 0; padding: 0; vertical-align: middle; }
@@ -256,23 +254,17 @@
     const clear = document.querySelector("#clear");
     const boxes = [];
 
-    for (const group of [...new Set(tokens.map(t => t.group))]) {
-      const heading = document.createElement("div");
-      heading.className = "group";
-      heading.textContent = group;
-      box.append(heading);
-      const inGroup = tokens.map((t, i) => ({ t, i })).filter(x => x.t.group === group);
-      inGroup.sort((a, b) => a.t.label.localeCompare(b.t.label, "en", { sensitivity: "base" }));
-      for (const { t, i } of inGroup) {
-        const label = document.createElement("label");
-        label.title = t.meaning;
-        const input = document.createElement("input");
-        input.type = "checkbox";
-        input.value = String(i);
-        boxes.push(input);
-        label.append(input, t.label);
-        box.append(label);
-      }
+    const sorted = tokens.map((t, i) => ({ t, i }));
+    sorted.sort((a, b) => a.t.label.localeCompare(b.t.label, "en", { sensitivity: "base" }));
+    for (const { t, i } of sorted) {
+      const label = document.createElement("label");
+      label.title = t.group + ". " + t.meaning;
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = String(i);
+      boxes.push(input);
+      label.append(input, t.label);
+      box.append(label);
     }
 
     function selectedTokens() {
@@ -307,7 +299,7 @@
         code.textContent = t.label;
         const span = document.createElement("span");
         span.className = "meaning";
-        span.textContent = " " + t.meaning;
+        span.textContent = " " + t.meaning + " (" + t.group.toLowerCase() + ")";
         li.append(code, span);
         return li;
       }));

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RxJS user-friendly names</title>
+  <style>
+    :root { color-scheme: light dark; --line: #ccc; --muted: #666; }
+    body { font: 16px/1.45 system-ui, sans-serif; margin: 2rem auto; max-width: 52rem; padding: 0 1rem; }
+    h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+    p { color: var(--muted); }
+    input { width: 100%; box-sizing: border-box; font: inherit; padding: 0.6rem 0.7rem; margin: 1rem 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; vertical-align: top; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--line); }
+    code { font-family: ui-monospace, monospace; }
+    #count { font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>RxJS user-friendly names</h1>
+  <p>The main contributor to this project is SuperGrok. Search matches the friendly name, the RxJS operator, and the summary.</p>
+  <input id="q" type="search" placeholder="Search names" autofocus>
+  <p id="count"></p>
+  <table>
+    <thead><tr><th>Name</th><th>Operator</th><th>Summary</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <script>
+    const names = [
+      ["after(signal$)", "skipUntil", "Drop values until signal$ emits."],
+      ["afterQuiet(ms)", "debounceTime", "Emit the latest value only after ms with nothing new."],
+      ["afterQuietWhen(fn)", "debounce", "Each value picks the signal that ends its quiet wait."],
+      ["again(fn)", "expand", "Feed each output back through fn."],
+      ["alongWith(other$)", "mergeWith", "Merge this source with other$."],
+      ["as(fn)", "map", "Replace each value."],
+      ["at(index)", "elementAt", "Emit the value at that index, or error."],
+      ["batchBetween(open$, closeFn)", "bufferToggle", "Open an array on open$, close it with closeFn."],
+      ["batchEvery(ms)", "bufferTime", "Emit an array of every value in the duration."],
+      ["batchOf(n)", "bufferCount", "Emit an array of every n values."],
+      ["batchUntil(fn)", "bufferWhen", "Each batch asks fn for the signal that closes it."],
+      ["batchWhen(signal$)", "buffer", "Close the array when signal$ emits, then start another."],
+      ["beginWith(...values)", "startWith", "Emit these values first."],
+      ["collect()", "toArray", "Emit every value as one array on complete."],
+      ["connected()", "connectable / publish", "Subscribers wait until connect()."],
+      ["connectedFinal()", "connectable + AsyncSubject", "Manual connect, emit the last value on complete."],
+      ["connectedLast(seed)", "connectable + BehaviorSubject", "Manual connect, late subscribers get the seed or latest value."],
+      ["connectedRecent(n)", "connectable + ReplaySubject", "Manual connect, replay the last n."],
+      ["connectedRecent(n, ms)", "publishReplay", "Manual connect, replay aged by ms."],
+      ["count()", "count", "Emit how many values passed."],
+      ["dropValues()", "ignoreElements", "Emit nothing. Pass complete and error."],
+      ["emitOn(scheduler)", "observeOn", "Deliver notifications on that scheduler."],
+      ["exactlyOne()", "single", "Error unless the source emits exactly one match."],
+      ["failAfter(ms)", "timeout", "Error if the next value does not arrive in time."],
+      ["failIfEmpty()", "throwIfEmpty", "Error if the source completed empty."],
+      ["finishWith(...values)", "endWith", "Emit these values on complete."],
+      ["firstAndLastEvery(ms)", "throttleTime, both edges", "Emit the opener, and the last value if a later one arrived."],
+      ["firstEvery(ms)", "throttleTime", "Emit the first value, then ignore for ms."],
+      ["firstMatch(pred)", "find", "Emit the first value that matches, then complete."],
+      ["firstToEmit(other$)", "raceWith", "Keep whichever source emits first."],
+      ["firstWhen(signal$)", "throttle", "Emit the opener, then ignore until signal$ emits."],
+      ["fold(fn, seed)", "reduce", "Emit the fold once, on complete."],
+      ["greatest()", "max", "Emit the largest value on complete."],
+      ["groupBy(key)", "groupBy", "Split into one observable per key."],
+      ["ifEmpty(value)", "defaultIfEmpty", "Emit value if the source completed empty."],
+      ["keep(pred)", "filter", "Pass values that match."],
+      ["lastEvery(ms)", "auditTime", "Hold values for ms, then emit the latest."],
+      ["lastOnFrame()", "auditTime(0, animationFrameScheduler)", "The next paint is the window. Emit the latest value before it."],
+      ["lastWhen(signal$)", "audit", "Hold values until signal$ emits, then emit the latest."],
+      ["laterBy(ms)", "delay", "Shift each value by ms, or until a date. Drop nothing."],
+      ["laterWhen(fn)", "delayWhen", "Each value waits for its own signal."],
+      ["latestOf(other$)", "combineLatestWith", "Emit when either side emits, with the latest of each."],
+      ["least()", "min", "Emit the smallest value on complete."],
+      ["notices()", "materialize", "Turn next, error, and complete into notice values."],
+      ["onEnd(fn)", "finalize", "Run when the subscription ends, for any reason."],
+      ["onError(fn)", "catchError", "Replace the error with another stream."],
+      ["onlyFirst()", "first", "Emit one value, then complete."],
+      ["onlyLast()", "last", "Emit the last value on complete."],
+      ["pairedWith(other$)", "zipWith", "Pair values by index. Wait for both."],
+      ["peek(fn)", "tap", "Look at a value without changing the stream."],
+      ["pollEvery(ms)", "sampleTime", "On a fixed clock, emit the latest value if one arrived."],
+      ["pollWhen(signal$)", "sample", "When signal$ emits, emit the latest value if one arrived."],
+      ["repeat(n)", "repeat", "Resubscribe after complete."],
+      ["retry(n)", "retry", "Resubscribe after an error."],
+      ["runAll(fn)", "mergeMap", "Start every inner. Emit as they arrive."],
+      ["runInOrder(fn)", "concatMap", "Queue inners. Start the next when the current completes."],
+      ["runLatest(fn)", "switchMap", "Unsubscribe the previous inner. Keep the newest."],
+      ["runUnlessBusy(fn)", "exhaustMap", "Drop new source values while an inner is active."],
+      ["shared()", "share", "One upstream while anyone listens. Restart after idle."],
+      ["sharedFinal()", "share with AsyncSubject", "Emit only the last value, and only on complete."],
+      ["sharedLast()", "shareReplay({ bufferSize: 1, refCount: true })", "Late subscribers get the latest value, then live values."],
+      ["sharedRecent(n)", "shareReplay({ bufferSize: n, refCount: true })", "Late subscribers get the last n values."],
+      ["sharedRecent(n, ms)", "shareReplay with windowTime", "Replay buffer also drops values older than ms."],
+      ["sharedUntilQuiet(ms)", "share with a reset timer", "Keep the upstream for ms after the last subscriber leaves."],
+      ["skip(n)", "skip", "Drop the first n values."],
+      ["skipLast(n)", "skipLast", "Drop the last n values."],
+      ["skipSame()", "distinctUntilChanged", "Drop a value equal to the previous one."],
+      ["skipSameBy(key)", "distinctUntilKeyChanged", "Drop a value whose key equals the previous key."],
+      ["skipSeen()", "distinct", "Drop values already seen."],
+      ["skipWhile(pred)", "skipWhile", "Drop values while pred holds."],
+      ["spanBetween(open$, closeFn)", "windowToggle", "Open an observable on open$, close it with closeFn."],
+      ["spanEvery(ms)", "windowTime", "Emit an observable for each duration."],
+      ["spanOf(n)", "windowCount", "Emit an observable for every n values."],
+      ["spanUntil(fn)", "windowWhen", "Each span asks fn for the signal that closes it."],
+      ["spanWhen(signal$)", "window", "Close the observable when signal$ emits, then start another."],
+      ["subscribeOn(scheduler)", "subscribeOn", "Call subscribe on that scheduler."],
+      ["take(n)", "take", "Emit the first n values, then complete."],
+      ["takeLast(n)", "takeLast", "Emit the last n values on complete."],
+      ["takeWhile(pred)", "takeWhile", "Emit while pred holds, then complete."],
+      ["then(other$)", "concatWith", "Subscribe to other$ after this source completes."],
+      ["until(signal$)", "takeUntil", "Complete when signal$ emits."],
+      ["valuesFromNotices()", "dematerialize", "Turn notices back into notifications."],
+      ["whenAllDone(others)", "forkJoin", "Emit the last value of each source when all complete."],
+      ["withGap()", "timeInterval", "Add the time since the previous value."],
+      ["withLatest(other$)", "withLatestFrom", "Pair each value with the latest from other$."],
+      ["withPrevious()", "pairwise", "Emit [previous, current]."],
+      ["withTime()", "timestamp", "Add the time the value was emitted."]
+    ].sort((a, b) => a[0].localeCompare(b[0]));
+
+    const rows = document.querySelector("#rows");
+    const count = document.querySelector("#count");
+    const q = document.querySelector("#q");
+
+    function show(term) {
+      const needle = term.trim().toLowerCase();
+      const found = names.filter(row => row.join(" ").toLowerCase().includes(needle));
+      rows.replaceChildren(...found.map(([name, operator, summary]) => {
+        const tr = document.createElement("tr");
+        for (const text of [name, operator, summary]) {
+          const td = document.createElement("td");
+          if (text !== summary) {
+            const code = document.createElement("code");
+            code.textContent = text;
+            td.append(code);
+          } else {
+            td.textContent = text;
+          }
+          tr.append(td);
+        }
+        return tr;
+      }));
+      count.textContent = found.length + " of " + names.length;
+    }
+
+    q.addEventListener("input", () => show(q.value));
+    show("");
+  </script>
+</body>
+</html>

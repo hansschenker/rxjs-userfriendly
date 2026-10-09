@@ -21,6 +21,93 @@ The main contributor to this project is SuperGrok.
 
 Each name wraps one operator. `lastEvery` stays on `auditTime` and does not also mean trailing `throttleTime`.
 
+## throttle*
+
+```ts
+firstEvery(ms)                 // throttleTime(ms), leading only, the default
+firstEvery(ms, scheduler)      // throttleTime(ms, scheduler)
+firstAndLastEvery(ms)          // throttleTime(ms, scheduler, { leading: true, trailing: true })
+firstAndLastEvery(ms, scheduler)
+
+firstWhen(signal$)             // throttle(signal$), leading only
+firstWhen(signal$, { leading: true, trailing: true })
+```
+
+`firstEvery(1000)` emits the value that opens the window, then drops values until that duration ends. `firstAndLastEvery(1000)` also emits the latest value from inside the window when it ends. In RxJS 7 that trailing emit starts a new silent interval.
+
+There is no friendly alias for trailing-only `throttleTime`. That shape is `lastEvery`, and `lastEvery` wraps `auditTime`, not `throttleTime`.
+
+## sample*
+
+```ts
+pollEvery(ms)                  // sampleTime(ms)
+pollEvery(ms, scheduler)       // sampleTime(ms, scheduler)
+pollWhen(signal$)              // sample(signal$)
+```
+
+The clock is independent of the source. On each tick, emit the latest value if one arrived since the previous tick, otherwise emit nothing. `pollEvery` is not `lastEvery`: `lastEvery` opens its window from a source value and always ends with an emit.
+
+## debounce*
+
+```ts
+afterQuiet(ms)                 // debounceTime(ms)
+afterQuiet(ms, scheduler)      // debounceTime(ms, scheduler)
+afterQuietWhen(fn)             // debounce(fn)
+```
+
+Every new value resets the wait. The latest value is emitted only after `ms` with nothing new, or after the signal chosen by `fn` emits. A value every 200 ms through `afterQuiet(1000)` emits nothing until the source goes quiet.
+
+## delay*
+
+```ts
+laterBy(ms)                    // delay(ms)
+laterBy(ms, scheduler)         // delay(ms, scheduler)
+laterBy(date)                  // delay(date)
+laterWhen(fn)                  // delayWhen(fn)
+```
+
+Each value is shifted. Order is kept. Nothing is dropped. `laterBy` waits a duration or until a date. `laterWhen` lets each value pick its own delay signal. `after(signal$)` is not this family: that name is `skipUntil`.
+
+## buffer*
+
+`batch` emits `T[]` when the span closes.
+
+```ts
+batchEvery(ms)                 // bufferTime(ms)
+batchEvery(ms, { every })      // bufferTime(ms, every)
+batchEvery(ms, { max })        // bufferTime(ms, undefined, max)
+batchEvery(ms, scheduler)      // bufferTime with a scheduler
+
+batchOf(n)                     // bufferCount(n)
+batchOf(n, { every })          // bufferCount(n, every)
+
+batchWhen(signal$)             // buffer(signal$)
+batchUntil(fn)                 // bufferWhen(fn)
+batchBetween(open$, closeFn)   // bufferToggle(open$, closeFn)
+```
+
+`batchWhen` closes the current array when `signal$` emits, then starts another. `batchUntil` asks `fn` for a fresh closing signal each time a batch opens. `batchBetween` opens an array when `open$` emits and closes it when `closeFn` for that opening emits. Overlapping openings produce overlapping arrays.
+
+## window*
+
+`span` emits `Observable<T>` while the span is open. Same clocks as `batch`, different result: a live stream, not the closed list.
+
+```ts
+spanEvery(ms)                  // windowTime(ms)
+spanEvery(ms, { every })       // windowTime(ms, every)
+spanEvery(ms, { max })         // windowTime(ms, undefined, max)
+spanEvery(ms, scheduler)       // windowTime with a scheduler
+
+spanOf(n)                      // windowCount(n)
+spanOf(n, { every })           // windowCount(n, every)
+
+spanWhen(signal$)              // window(signal$)
+spanUntil(fn)                  // windowWhen(fn)
+spanBetween(open$, closeFn)    // windowToggle(open$, closeFn)
+```
+
+`spanEvery(1000)` emits an observable per second; subscribe to each one to see values as they arrive. `batchEvery(1000)` emits one array when that second ends.
+
 ## Time
 
 ```ts
@@ -65,15 +152,18 @@ Do not point `lastEvery` at `throttleTime(..., { leading: false, trailing: true 
 shared()                 // share()
 sharedLast()             // shareReplay({ bufferSize: 1, refCount: true })
 sharedRecent(n)          // shareReplay({ bufferSize: n, refCount: true })
+sharedRecent(n, ms)      // shareReplay({ bufferSize: n, windowTime: ms, refCount: true })
 sharedFinal()            // share with an AsyncSubject
+sharedUntilQuiet(ms)     // share({ resetOnRefCountZero: () => timer(ms) })
 
 connected()              // connectable(source) / publish()
 connectedLast(seed)      // connectable + BehaviorSubject / publishBehavior
 connectedRecent(n)       // connectable + ReplaySubject / publishReplay
+connectedRecent(n, ms)   // ReplaySubject buffer aged by ms / publishReplay
 connectedFinal()         // connectable + AsyncSubject / publishLast
 ```
 
-`shared()` emits nothing to a subscriber who arrives late. `sharedLast()` gives that subscriber the latest value, then live values. `sharedFinal()` stays silent until the source completes, then emits that one value.
+`shared()` emits nothing to a subscriber who arrives late. `sharedLast()` gives that subscriber the latest value, then live values. `sharedFinal()` stays silent until the source completes, then emits that one value. `sharedUntilQuiet(ms)` keeps the upstream alive for `ms` after the last subscriber leaves.
 
 Do not point `sharedLast` at bare `shareReplay(1)`. That old signature never unsubscribes from the source. The `refCount: true` form is the one that stops when idle.
 

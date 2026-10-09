@@ -14,12 +14,28 @@
     th, td { text-align: left; vertical-align: top; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--line); }
     code { font-family: ui-monospace, monospace; }
     #count { font-size: 0.9rem; }
+    .grammar { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
+    .grammar label { display: block; color: var(--muted); font-size: 0.9rem; margin-bottom: 0.4rem; }
+    select { width: 100%; box-sizing: border-box; font: inherit; padding: 0.3rem; }
+    button { font: inherit; padding: 0.3rem 0.6rem; margin-top: 0.5rem; }
+    #picked { margin: 0; padding-left: 1.1rem; }
+    #picked li { margin: 0.2rem 0; }
+    #picked .meaning { color: var(--muted); }
+    @media (max-width: 40rem) { .grammar { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <h1>RxJS user-friendly names</h1>
-  <p>The main contributor to this project is SuperGrok. Search matches the friendly name, the RxJS operator, and the summary.</p>
+  <p>The main contributor to this project is SuperGrok. Search matches the friendly name, the RxJS operator, and the summary. Pick grammar tokens to narrow the list to the names built from them.</p>
   <input id="q" type="search" placeholder="Search names" autofocus>
+  <div class="grammar">
+    <div>
+      <label for="tokens">Grammar tokens. Click to select, click again to deselect. The list shows every name that uses any selected token.</label>
+      <select id="tokens" multiple size="14"></select>
+      <button id="clear" type="button">Clear tokens</button>
+    </div>
+    <ul id="picked"></ul>
+  </div>
   <p id="count"></p>
   <table>
     <thead><tr><th>Name</th><th>Operator</th><th>Summary</th></tr></thead>
@@ -138,14 +154,128 @@
       ["fromNotices()","dematerialize","Turn notices back into notifications."]
     ].sort((a, b) => a[0].localeCompare(b[0]));
 
+    // The closed token list from the README grammar: [group, label, meaning, key, mode, except].
+    // key is the word to match inside a name; mode "prefix" or "suffix" makes the match
+    // case-sensitive and, for prefix, anchors it to the first word; except lists names
+    // where the word appears without the meaning of the token.
+    const tokens = [
+      ["Roots", "first", "the first value of a window or race survives"],
+      ["Roots", "last", "the latest value so far survives"],
+      ["Roots", "poll", "emits the latest value on a clock or a signal, if one arrived"],
+      ["Roots", "afterQuiet", "emits the latest value once the source has been quiet"],
+      ["Roots", "later", "shifts each value in time; drops nothing"],
+      ["Roots", "after", "waits for a signal before values pass"],
+      ["Roots", "until", "completes the stream when a signal fires once"],
+      ["Roots", "fail", "errors the stream"],
+      ["Roots", "with (prefix)", "adds data to each value; does not drop values", "with", "prefix"],
+      ["Roots", "With (suffix)", "joins another source or literal values to this one", "With", "suffix"],
+      ["Roots", "batch", "emits an array when the span closes"],
+      ["Roots", "span", "emits an observable while the span is open"],
+      ["Roots", "run", "maps each value to inner work and flattens it; the suffix is the concurrency policy"],
+      ["Roots", "flatten", "subscribes to the streams the source already emits"],
+      ["Roots", "accumulate", "folds values into state and emits the state after each value"],
+      ["Roots", "fold", "folds everything and emits once, at completion"],
+      ["Roots", "collect", "folds everything into one array and emits once, at completion"],
+      ["Roots", "count", "counts everything and emits once, at completion"],
+      ["Roots", "least", "the smallest value, emitted once at completion"],
+      ["Roots", "greatest", "the largest value, emitted once at completion"],
+      ["Roots", "as", "replaces each value", "as", "any", ["sameAs"]],
+      ["Roots", "keep", "passes values that match"],
+      ["Roots", "only", "passes only this"],
+      ["Roots", "peek", "looks and changes nothing"],
+      ["Roots", "on (prefix)", "runs a callback at a lifecycle point", "on", "prefix"],
+      ["Roots", "shared", "starts on the first subscriber and stops when the last one leaves"],
+      ["Roots", "connected", "does nothing until connect(), and does not stop when subscribers leave"],
+      ["Roots", "begin", "adds literal values before the first value"],
+      ["Roots", "finish", "adds literal values after the last value"],
+      ["Roots", "then", "subscribes to the next source after this one ends"],
+      ["Kept technical", "skip", "drops values; technical name kept"],
+      ["Kept technical", "take", "keeps values; technical name kept"],
+      ["Kept technical", "retry", "resubscribes after an error; technical name kept"],
+      ["Kept technical", "repeat", "resubscribes after complete; technical name kept"],
+      ["Kept technical", "groupBy", "one observable per key; technical name kept"],
+      ["Kept technical", "isEmpty", "true on complete if no value arrived; technical name kept"],
+      ["Kept technical", "observeOn", "delivers on a scheduler; technical name kept"],
+      ["Kept technical", "subscribeOn", "subscribes on a scheduler; technical name kept"],
+      ["Trigger and time", "Every", "a duration you chose, recurring"],
+      ["Trigger and time", "EveryFrame", "the animation frame is the clock"],
+      ["Trigger and time", "Of", "a count of values", "Of", "any", ["finalOfEach"]],
+      ["Trigger and time", "On", "one external signal; every firing triggers", "On", "suffix", ["observeOn", "subscribeOn"]],
+      ["Trigger and time", "When", "a function you supply; it returns a fresh signal per value or span, and that signal fires once"],
+      ["Trigger and time", "Until", "one external signal; it fires once and ends the stream"],
+      ["Trigger and time", "Between", "opens on a signal and closes on the signal made for that opening"],
+      ["Trigger and time", "While", "lasts as long as a predicate holds"],
+      ["Trigger and time", "After", "waits for a duration or a signal first; same meaning as the root after"],
+      ["Trigger and time", "Quiet", "a duration with no source value"],
+      ["Concurrency", "Concurrent", "lets inners overlap; nothing is cancelled (allowConcurrent)"],
+      ["Concurrency", "InOrder", "runs one inner at a time and queues the rest (queueWhileBusy)"],
+      ["Concurrency", "Latest", "runs the newest inner and cancels the previous one (keepLatest)", "Latest", "any", ["withLatest"]],
+      ["Concurrency", "UnlessBusy", "runs the first inner and drops new values while it runs (ignoreWhileBusy)"],
+      ["Concurrency", "Recursive", "feeds every output back in"],
+      ["Concurrency", "Combined", "join policy of flatten: the latest of each"],
+      ["Concurrency", "Paired", "join policy of flatten: by index"],
+      ["Sharing", "Last", "replays the latest value to late subscribers"],
+      ["Sharing", "Recent", "replays the last n, or only those younger than ms"],
+      ["Sharing", "Final", "the value at completion"],
+      ["Sharing", "Linger", "keeps the upstream for ms after the last subscriber leaves"],
+      ["Sharing", "Inside", "builds the pipeline that uses the shared source"],
+      ["Ending", "End", "the end of the subscription: complete, error, or unsubscribe"],
+      ["Ending", "IfEmpty", "a source that completed with no value"],
+      ["Ending", "IfQuiet", "no value within ms"],
+      ["Comparison", "Same", "equal to the previous value, or to another source"],
+      ["Comparison", "Seen", "equal to any earlier value"],
+      ["Comparison", "By", "compares or groups by a key"],
+      ["Comparison", "Match", "satisfies a predicate"]
+    ].map(([group, label, meaning, key, mode, except]) => ({ group, label, meaning, key: key || label, mode: mode || "any", except: except || [] }));
+
+    const words = s => s.replace(/\(.*$/, "").match(/[a-z]+|[A-Z][a-z]*/g) || [];
+
+    function uses(nameWords, token) {
+      if (token.except.includes(nameWords.join(""))) return false;
+      const want = words(token.key);
+      const norm = token.mode === "any" ? w => w.toLowerCase() : w => w;
+      const have = nameWords.map(norm);
+      const need = want.map(norm);
+      const last = token.mode === "prefix" ? 0 : have.length - need.length;
+      for (let i = 0; i <= last; i++) {
+        if (need.every((w, j) => w === have[i + j])) return true;
+      }
+      return false;
+    }
+
     const rows = document.querySelector("#rows");
     const count = document.querySelector("#count");
     const q = document.querySelector("#q");
+    const sel = document.querySelector("#tokens");
+    const picked = document.querySelector("#picked");
+    const clear = document.querySelector("#clear");
 
-    function show(term) {
-      const needle = term.trim().toLowerCase();
-      const found = names.filter(row => row.join(" ").toLowerCase().includes(needle));
-      rows.replaceChildren(...found.map(([name, operator, summary]) => {
+    for (const group of [...new Set(tokens.map(t => t.group))]) {
+      const og = document.createElement("optgroup");
+      og.label = group;
+      tokens.forEach((t, i) => {
+        if (t.group !== group) return;
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = t.label;
+        opt.title = t.meaning;
+        og.append(opt);
+      });
+      sel.append(og);
+    }
+
+    function selectedTokens() {
+      return [...sel.selectedOptions].map(o => tokens[Number(o.value)]);
+    }
+
+    function show() {
+      const needle = q.value.trim().toLowerCase();
+      const chosen = selectedTokens();
+      const found = names
+        .map(row => ({ row, hits: chosen.filter(t => uses(words(row[0]), t)) }))
+        .filter(({ row, hits }) => row.join(" ").toLowerCase().includes(needle) && (chosen.length === 0 || hits.length > 0));
+      found.sort((a, b) => b.hits.length - a.hits.length || a.row[0].localeCompare(b.row[0]));
+      rows.replaceChildren(...found.map(({ row: [name, operator, summary] }) => {
         const tr = document.createElement("tr");
         for (const text of [name, operator, summary]) {
           const td = document.createElement("td");
@@ -160,11 +290,35 @@
         }
         return tr;
       }));
-      count.textContent = found.length + " of " + names.length;
+      picked.replaceChildren(...chosen.map(t => {
+        const li = document.createElement("li");
+        const code = document.createElement("code");
+        code.textContent = t.label;
+        const span = document.createElement("span");
+        span.className = "meaning";
+        span.textContent = " " + t.meaning;
+        li.append(code, span);
+        return li;
+      }));
+      count.textContent = found.length + " of " + names.length + (chosen.length ? ", using " + chosen.map(t => t.label).join(" or ") : "");
     }
 
-    q.addEventListener("input", () => show(q.value));
-    show("");
+    // Click toggles one option without needing Ctrl; the scroll position is kept.
+    sel.addEventListener("mousedown", event => {
+      if (event.target.tagName !== "OPTION") return;
+      event.preventDefault();
+      const top = sel.scrollTop;
+      event.target.selected = !event.target.selected;
+      sel.scrollTop = top;
+      show();
+    });
+    sel.addEventListener("change", show);
+    clear.addEventListener("click", () => {
+      for (const opt of sel.options) opt.selected = false;
+      show();
+    });
+    q.addEventListener("input", show);
+    show();
   </script>
 </body>
 </html>

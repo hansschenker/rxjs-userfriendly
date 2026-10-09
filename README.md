@@ -283,15 +283,15 @@ Excluded, deprecated in RxJS 7 and gone in 8: `pluck`, `mapTo`, `concatMapTo`, `
 
 Deliberately unnamed: trailing-only `throttleTime`. It is close to `lastEvery` but not the same, and a name that hides the difference is worse than the original.
 
-## buffer*, window*, and debounce*
+## batch*, span*, and afterQuiet*
 
 These three can all take a duration. They do not do the same job.
 
-`buffer*` collects. Every value in the span is kept. You receive one array when the span closes, and nothing before that.
+`batch*` (`buffer*`) collects. Every value in the span is kept. You receive one array when the span closes, and nothing before that.
 
-`window*` splits. Every value is kept too, but you receive an observable when the span opens. Values come out of that observable as they arrive. Same clock as `buffer*`, different shape: a live stream, not the closed list.
+`span*` (`window*`) splits. Every value is kept too, but you receive an observable when the span opens. Values come out of that observable as they arrive. Same clock as `batch*`, different shape: a live stream, not the closed list.
 
-`debounce*` waits for quiet. It does not collect. Each new value throws away the previous one and restarts the timer. Only the latest value is emitted, and only after the quiet period. A stream that never pauses emits nothing.
+`afterQuiet*` (`debounce*`) waits for quiet. It does not collect. Each new value throws away the previous one and restarts the timer. Only the latest value is emitted, and only after the quiet period. A stream that never pauses emits nothing.
 
 Same source, three results. The window is three ticks. `-` is silence.
 
@@ -335,24 +335,29 @@ batchOf  ---[a,b]---[c,d]|
 
 ```text
 source     a--b--c--d--e--|
-signal     ------x--------x
+signal$    ------x--------x
 batchOn    ------[a,b]----[c,d,e]|
 ```
 
 `batchWhen(fn)` asks for a new closing signal each time a batch opens. `bufferWhen`.
 
 ```text
-source      a--b--c-----d--e--|
-close       ------x-----------x
-batchWhen   ------[a,b]-------[c,d,e]|
+source         a--b--c-----d--e--|
+close for 1    ------x
+close for 2          ------------x
+batchWhen      ------[a,b]-------[c,d,e]|
 ```
 
-`batchBetween(open$, fn)` opens on `open$` and closes with the signal `fn` makes for that opening. `bufferToggle`. Overlaps stay overlaps.
+`batchOn` has one signal line, and it fires again and again. `batchWhen` has one line per batch, and each fires once. That is the whole difference between `On` and `When`.
+
+`batchBetween(open$, fn)` opens on `open$` and closes with the signal `fn` makes for that opening. `bufferToggle`. Overlaps stay overlaps: the second batch opens before the first closes, so `b` and `c` are in both. `e` arrives after both closed and is in no batch.
 
 ```text
 source        a--b--c--d--e--|
-open          x--------x
-batchBetween  ---[a,b,c]--[d,e]|
+open$         x--x
+close for 1   --------x
+close for 2      --------x
+batchBetween  --------[a,b,c]--[b,c,d]-|
 ```
 
 ### span* visuals
@@ -377,7 +382,7 @@ spanOf  +-----+-----+
 
 ```text
 source    a--b--c--d--e--|
-signal    ------x--------x
+signal$   ------x--------x
 spanOn    +-----+--------+
           a--b| c--d--e|
 ```
@@ -385,21 +390,28 @@ spanOn    +-----+--------+
 `spanWhen(fn)` asks for a fresh closing signal per span. `windowWhen`.
 
 ```text
-source     a--b--c-----d--e--|
-spanWhen   +-----+-----------+
-           a--b| c-----d--e|
+source       a--b--c-----d--e--|
+close for 1  ------x
+close for 2        ------------x
+spanWhen     +-----+-----------+
+             a--b| c-----d--e|
 ```
 
-`spanBetween(open$, fn)` opens an observable on `open$`. `windowToggle`.
+`spanBetween(open$, fn)` opens an observable on `open$` and closes it with the signal `fn` makes for that opening. `windowToggle`. The same overlap, as two live observables.
 
 ```text
 source       a--b--c--d--e--|
-open         x--------x
-spanBetween  +--------+-----+
-             a--b--c| d--e|
+open$        x--x
+close for 1  --------x
+close for 2     --------x
+spanBetween  +--+
+             a--b--c|
+                b--c--d|
 ```
 
-### afterQuiet* visuals
+### Quiet visuals
+
+`Quiet` is one token in three roots. `afterQuiet` releases the latest value after quiet. `failIfQuiet` errors on quiet. `ifQuiet` switches to another source on quiet.
 
 `afterQuiet(3)` emits the latest value only after three quiet ticks. `debounceTime`. Here `c` and `f` each get a quiet gap.
 
@@ -423,6 +435,21 @@ quiet for a     ------x
 quiet for b          ----x
 quiet for c               --x
 afterQuietWhen  ------a----b--c|
+```
+
+`failIfQuiet(3)` errors when three ticks pass with no value. `timeout`. `#` is the error.
+
+```text
+source       a--b--c------d--|
+failIfQuiet  a--b--c--#
+```
+
+`ifQuiet(3, other$)` switches to `other$` instead of erroring. `timeout({ each: 3, with: () => other$ })`. The source is dropped from then on, `d` included.
+
+```text
+source   a--b--c------d--|
+other$            x--y--|
+ifQuiet  a--b--c--x--y--|
 ```
 
 ## Names

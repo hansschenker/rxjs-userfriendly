@@ -128,7 +128,7 @@ The legend, the count line, and the table follow the order the tokens were ticke
 
 ### Slots
 
-| Slot | Policy question it answers | Token group |
+| Name | Description | Token group |
 | --- | --- | --- |
 | Root | Value and Cardinality: what comes out, and how many per input | Roots |
 | Trigger suffix | Trigger and Time: what causes output, and when | Trigger and time |
@@ -144,7 +144,7 @@ Type policies are not in names. TypeScript carries them.
 
 A root in lower case is the first word. The same word in upper case is a suffix with the same meaning (`last` in `lastEvery`, `Last` in `sharedLast`).
 
-| Root | Means | Names |
+| Name | Description | Names |
 | --- | --- | --- |
 | `first` | the first value of a window or race survives | `firstEvery`, `firstWhen`, `firstAndLastEvery`, `firstMatch`, `firstToEmit`, `onlyFirst` |
 | `last` | the latest value so far survives | `lastEvery`, `lastWhen`, `lastEveryFrame`, `sharedLast`, `connectedLast` |
@@ -176,18 +176,18 @@ Suffix `With` is the one position rule: prefix `with` attaches data, suffix `Wit
 
 ### Trigger and time
 
-| Token | Argument | Means | Names |
+| Name | Description | Argument | Names |
 | --- | --- | --- | --- |
-| `Every` | `ms` | a fixed clock you chose, recurring | `firstEvery`, `lastEvery`, `pollEvery`, `batchEvery`, `spanEvery` |
-| `EveryFrame` | none | the animation frame is the clock | `lastEveryFrame` |
-| `Of` | `n` | a count of values | `batchOf`, `spanOf` |
-| `On` | `signal$` | one external signal; every firing triggers | `pollOn`, `batchOn`, `spanOn` |
-| `When` | `fn` | you make the signal, fresh for each value or span; it fires once | `firstWhen`, `lastWhen`, `afterQuietWhen`, `laterWhen`, `batchWhen`, `spanWhen` |
-| `Until` | `signal$` | one external signal; fires once and ends the stream | `until` |
-| `Between` | `open$, fn` | opens on `open$`, closes on the signal `fn` makes for that opening; overlaps stay overlaps | `batchBetween`, `spanBetween` |
-| `While` | `pred` | as long as `pred` holds | `takeWhile`, `skipWhile` |
-| `After` | `ms` or `fn` | wait this long, or for this signal, first; same meaning as the root `after` | `retryAfter`, `repeatAfter` |
-| `Quiet` | `ms` | `ms` with no source value | `afterQuiet`, `failIfQuiet`, `ifQuiet` |
+| `Every` | a fixed clock you chose, recurring | `ms` | `firstEvery`, `lastEvery`, `pollEvery`, `batchEvery`, `spanEvery` |
+| `EveryFrame` | the animation frame is the clock | none | `lastEveryFrame` |
+| `Of` | a count of values | `n` | `batchOf`, `spanOf` |
+| `On` | one external signal; every firing triggers | `signal$` | `pollOn`, `batchOn`, `spanOn` |
+| `When` | you make the signal, fresh for each value or span; it fires once | `fn` | `firstWhen`, `lastWhen`, `afterQuietWhen`, `laterWhen`, `batchWhen`, `spanWhen` |
+| `Until` | one external signal; fires once and ends the stream | `signal$` | `until` |
+| `Between` | opens on `open$`, closes on the signal `fn` makes for that opening; overlaps stay overlaps | `open$, fn` | `batchBetween`, `spanBetween` |
+| `While` | as long as `pred` holds | `pred` | `takeWhile`, `skipWhile` |
+| `After` | wait this long, or for this signal, first; same meaning as the root `after` | `ms` or `fn` | `retryAfter`, `repeatAfter` |
+| `Quiet` | `ms` with no source value | `ms` | `afterQuiet`, `failIfQuiet`, `ifQuiet` |
 
 `On`, `When`, `Until` are three different shapes, not three spellings. `On` is one signal that keeps firing. `When` is a function you supply, called per value or per span, returning a signal that fires once. `Until` is one signal that fires once and ends everything. `throttle`, `audit`, `debounce`, `delayWhen`, `bufferWhen`, `windowWhen` all take a function, so they are all `When`.
 
@@ -195,7 +195,7 @@ Suffix `With` is the one position rule: prefix `with` attaches data, suffix `Wit
 
 The four policies of `rxjs-policy-debugger`, as suffixes. The same four words serve every family that has a concurrency axis: `run*`, `flatten*`, `accumulate*`.
 
-| Token | Inner work | Cancellation | Policy vocabulary | Names |
+| Name | Description | Cancellation | Policy vocabulary | Names |
 | --- | --- | --- | --- | --- |
 | `Concurrent` | all inners may overlap | nothing is cancelled | `allowConcurrent` | `runConcurrent`, `flattenConcurrent`, `accumulateConcurrent` |
 | `InOrder` | one at a time; new values wait in a queue | nothing is cancelled, order is kept | `queueWhileBusy` | `runInOrder`, `flattenInOrder` |
@@ -206,19 +206,19 @@ The four policies of `rxjs-policy-debugger`, as suffixes. The same four words se
 
 ### Sharing
 
-| Token | Policy | Means | Names |
+| Name | Description | Policy | Names |
 | --- | --- | --- | --- |
-| `shared` | Sharing, Connection, Disconnection, Reset | one upstream; connects on the first subscriber, disconnects on the last, resets after | `shared` |
-| `connected` | Sharing, Connection | one upstream; connects on `connect()`, never disconnects on its own | `connected` |
-| `Last` | Replay | late subscribers get the latest value, then live values | `sharedLast`, `connectedLast(seed)` |
-| `Recent` | Replay | late subscribers get the last `n`; with `ms`, only values younger than `ms` | `sharedRecent(n)`, `sharedRecent(n, ms)`, `connectedRecent` |
-| `Final` | Replay, Termination | everyone gets only the value at completion | `sharedFinal`, `connectedFinal` |
-| `Linger` | Disconnection | keep the upstream `ms` after the last subscriber leaves | `sharedLinger(ms)` |
-| `Inside` | Connection | `fn` builds the pipeline that uses the shared source; connects on subscribe | `sharedInside(fn)` |
+| `shared` | one upstream; connects on the first subscriber, disconnects on the last, resets after | Sharing, Connection, Disconnection, Reset | `shared` |
+| `connected` | one upstream; connects on `connect()`, never disconnects on its own | Sharing, Connection | `connected` |
+| `Last` | late subscribers get the latest value, then live values | Replay | `sharedLast`, `connectedLast(seed)` |
+| `Recent` | late subscribers get the last `n`; with `ms`, only values younger than `ms` | Replay | `sharedRecent(n)`, `sharedRecent(n, ms)`, `connectedRecent` |
+| `Final` | everyone gets only the value at completion | Replay, Termination | `sharedFinal`, `connectedFinal` |
+| `Linger` | keep the upstream `ms` after the last subscriber leaves | Disconnection | `sharedLinger(ms)` |
+| `Inside` | `fn` builds the pipeline that uses the shared source; connects on subscribe | Connection | `sharedInside(fn)` |
 
 ### Ending
 
-| Token | Means | Names |
+| Name | Description | Names |
 | --- | --- | --- |
 | `Final` | the value at completion | `onlyFinal`, `finalOfEach`, `sharedFinal`, `connectedFinal` |
 | `End` | the end of the subscription: complete, error, or unsubscribe | `onEnd`, `onlyEnd` |
@@ -231,16 +231,16 @@ Aggregate roots (`fold`, `collect`, `count`, `least`, `greatest`) and `onlyFinal
 
 ### Comparison
 
-| Token | Argument | Means | Names |
+| Name | Description | Argument | Names |
 | --- | --- | --- | --- |
-| `Same` | none, or `other$` | equal to the previous value, or to another source | `skipSame`, `skipSameBy`, `sameAs` |
-| `Seen` | none | equal to any earlier value | `skipSeen`, `skipSeenBy` |
-| `By` | `key` | compare or group by a key | `skipSameBy`, `skipSeenBy`, `groupBy` |
-| `Match` | `pred` | satisfies a predicate | `firstMatch`, `firstMatchIndex`, `allMatch` |
+| `Same` | equal to the previous value, or to another source | none, or `other$` | `skipSame`, `skipSameBy`, `sameAs` |
+| `Seen` | equal to any earlier value | none | `skipSeen`, `skipSeenBy` |
+| `By` | compare or group by a key | `key` | `skipSameBy`, `skipSeenBy`, `groupBy` |
+| `Match` | satisfies a predicate | `pred` | `firstMatch`, `firstMatchIndex`, `allMatch` |
 
 ### Arguments
 
-| Argument | Shape | Policy |
+| Name | Description | Policy |
 | --- | --- | --- |
 | `ms` | milliseconds; `later` also takes a `Date` | Time |
 | `n` | a count | Cardinality |
@@ -348,7 +348,7 @@ afterQuiet      -------------------------------f|
 
 `batchEvery` emits `[a,b,c]` at the first boundary and `[d,e,f]` at the second. `spanEvery` emits two observables; the first produces `a`, `b`, `c` as they happen. `afterQuiet` emits only `f`, because every earlier value was followed by another before the quiet period ended.
 
-| | What you receive | Values kept | Clock |
+| Name | What you receive | Values kept | Clock |
 | --- | --- | --- | --- |
 | `batch*` (`buffer*`) | one `T[]` when the span closes | all | duration, count, or signal |
 | `span*` (`window*`) | an `Observable<T>` while the span is open | all, as they arrive | duration, count, or signal |
@@ -495,7 +495,7 @@ ifQuiet  a--b--c--x--y--|
 
 ## Names
 
-| Name | Operator | Summary |
+| Name | Operator | Description |
 | --- | --- | --- |
 | `firstEvery(ms)` | `throttleTime` | Emit the first value, then ignore for `ms`. |
 | `firstAndLastEvery(ms)` | `throttleTime`, both edges | Emit the opener, and the last value if a later one arrived. |
@@ -609,4 +609,5 @@ ifQuiet  a--b--c--x--y--|
 
 ## Contributors
 
-The main contributor to this project is SuperGrok (`supergrok@x.ai`).
+- SuperGrok (`supergrok@x.ai`), the main contributor.
+- Claude Fable 5.1 (Anthropic): the extended grammar, the marble diagrams, the grammar token filter in `index.html`, and the token tables.

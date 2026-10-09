@@ -16,91 +16,105 @@ The closed token list: 67 tokens, one line each, the same 67 the filter in `inde
 
 Roots:
 
-- `first` is the first value of a window or race.
-- `last` is the latest value so far.
-- `poll` emits the latest value on a clock or a signal, if one arrived.
-- `afterQuiet` emits the latest value once the source has been quiet.
-- `later` shifts each value in time. It drops nothing.
-- `after` waits for a signal before values pass.
-- `until` completes the stream when a signal fires once.
-- `fail` errors the stream.
-- `with` (prefix) adds data to each value. It does not drop values. The suffix names the data: `Gap`, `Time`, `Previous`, `Latest`.
-- `With` (suffix) joins another source or literal values to this one.
-- `batch` emits an array when the span closes.
-- `span` emits an observable while the span is open.
-- `run` maps each value to inner work and flattens it. The suffix is the concurrency policy.
-- `flatten` subscribes to the streams the source already emits. Same suffixes as `run`.
-- `accumulate` folds values into state and emits the state after each value.
-- `fold` folds everything and emits once, at completion.
-- `collect` folds everything into one array and emits once, at completion.
-- `count` counts everything and emits once, at completion.
-- `least` is the smallest value, emitted once at completion.
-- `greatest` is the largest value, emitted once at completion.
-- `as` replaces each value.
-- `keep` passes values that match.
-- `only` passes only this: `onlyFirst`, `onlyFinal`, `onlyEnd`.
-- `peek` looks and changes nothing.
-- `on` (prefix) runs a callback at a lifecycle point: `onEnd`, `onError`.
-- `shared` starts on the first subscriber and stops when the last one leaves.
-- `connected` does nothing until `connect()`, and does not stop when subscribers leave.
-- `begin` adds literal values before the first value.
-- `finish` adds literal values after the last value.
-- `then` subscribes to the next source after this one ends.
+| Name | Description |
+| --- | --- |
+| `first` | is the first value of a window or race. |
+| `last` | is the latest value so far. |
+| `poll` | emits the latest value on a clock or a signal, if one arrived. |
+| `afterQuiet` | emits the latest value once the source has been quiet. |
+| `later` | shifts each value in time. It drops nothing. |
+| `after` | waits for a signal before values pass. |
+| `until` | completes the stream when a signal fires once. |
+| `fail` | errors the stream. |
+| `with` (prefix) | adds data to each value. It does not drop values. The suffix names the data: `Gap`, `Time`, `Previous`, `Latest`. |
+| `With` (suffix) | joins another source or literal values to this one. |
+| `batch` | emits an array when the span closes. |
+| `span` | emits an observable while the span is open. |
+| `run` | maps each value to inner work and flattens it. The suffix is the concurrency policy. |
+| `flatten` | subscribes to the streams the source already emits. Same suffixes as `run`. |
+| `accumulate` | folds values into state and emits the state after each value. |
+| `fold` | folds everything and emits once, at completion. |
+| `collect` | folds everything into one array and emits once, at completion. |
+| `count` | counts everything and emits once, at completion. |
+| `least` | is the smallest value, emitted once at completion. |
+| `greatest` | is the largest value, emitted once at completion. |
+| `as` | replaces each value. |
+| `keep` | passes values that match. |
+| `only` | passes only this: `onlyFirst`, `onlyFinal`, `onlyEnd`. |
+| `peek` | looks and changes nothing. |
+| `on` (prefix) | runs a callback at a lifecycle point: `onEnd`, `onError`. |
+| `shared` | starts on the first subscriber and stops when the last one leaves. |
+| `connected` | does nothing until `connect()`, and does not stop when subscribers leave. |
+| `begin` | adds literal values before the first value. |
+| `finish` | adds literal values after the last value. |
+| `then` | subscribes to the next source after this one ends. |
 
 Kept technical names, already plain English and grammar-conform:
 
-- `skip` drops values.
-- `take` keeps values.
-- `retry` resubscribes after an error.
-- `repeat` resubscribes after complete.
-- `groupBy` splits into one observable per key.
-- `isEmpty` emits `true` on complete if no value arrived.
-- `observeOn` delivers on a scheduler.
-- `subscribeOn` subscribes on a scheduler.
+| Name | Description |
+| --- | --- |
+| `skip` | drops values. |
+| `take` | keeps values. |
+| `retry` | resubscribes after an error. |
+| `repeat` | resubscribes after complete. |
+| `groupBy` | splits into one observable per key. |
+| `isEmpty` | emits `true` on complete if no value arrived. |
+| `observeOn` | delivers on a scheduler. |
+| `subscribeOn` | subscribes on a scheduler. |
 
 Trigger and time suffixes:
 
-- `Every` is a duration you chose, recurring.
-- `EveryFrame` is the animation frame as the clock.
-- `Of` is a count of values.
-- `On` is one external signal. Every firing triggers.
-- `When` is a function you supply. It returns a fresh signal per value or span, and that signal fires once.
-- `Until` is one external signal. It fires once and ends the stream.
-- `Between` opens on a signal and closes on the signal made for that opening.
-- `While` lasts as long as a predicate holds.
-- `After` waits for a duration or a signal first. Same meaning as the root `after`.
-- `Quiet` is a duration with no source value.
+| Name | Description |
+| --- | --- |
+| `Every` | is a duration you chose, recurring. |
+| `EveryFrame` | is the animation frame as the clock. |
+| `Of` | is a count of values. |
+| `On` | is one external signal. Every firing triggers. |
+| `When` | is a function you supply. It returns a fresh signal per value or span, and that signal fires once. |
+| `Until` | is one external signal. It fires once and ends the stream. |
+| `Between` | opens on a signal and closes on the signal made for that opening. |
+| `While` | lasts as long as a predicate holds. |
+| `After` | waits for a duration or a signal first. Same meaning as the root `after`. |
+| `Quiet` | is a duration with no source value. |
 
 Concurrency suffixes, one per policy of `rxjs-policy-debugger`:
 
-- `Concurrent` lets inners overlap. Nothing is cancelled. `allowConcurrent`.
-- `InOrder` runs one inner at a time and queues the rest. `queueWhileBusy`.
-- `Latest` runs the newest inner and cancels the previous one. `keepLatest`.
-- `UnlessBusy` runs the first inner and drops new values while it runs. `ignoreWhileBusy`.
-- `Recursive` feeds every output back in.
-- `Combined` is the join policy of `flatten` that takes the latest of each.
-- `Paired` is the join policy of `flatten` that pairs by index.
+| Name | Description |
+| --- | --- |
+| `Concurrent` | lets inners overlap. Nothing is cancelled. `allowConcurrent`. |
+| `InOrder` | runs one inner at a time and queues the rest. `queueWhileBusy`. |
+| `Latest` | runs the newest inner and cancels the previous one. `keepLatest`. |
+| `UnlessBusy` | runs the first inner and drops new values while it runs. `ignoreWhileBusy`. |
+| `Recursive` | feeds every output back in. |
+| `Combined` | is the join policy of `flatten` that takes the latest of each. |
+| `Paired` | is the join policy of `flatten` that pairs by index. |
 
 Sharing suffixes:
 
-- `Last` replays the latest value to late subscribers.
-- `Recent` replays the last `n`, or only those younger than `ms`.
-- `Final` is the value at completion.
-- `Linger` keeps the upstream for `ms` after the last subscriber leaves.
-- `Inside` builds the pipeline that uses the shared source.
+| Name | Description |
+| --- | --- |
+| `Last` | replays the latest value to late subscribers. |
+| `Recent` | replays the last `n`, or only those younger than `ms`. |
+| `Final` | is the value at completion. |
+| `Linger` | keeps the upstream for `ms` after the last subscriber leaves. |
+| `Inside` | builds the pipeline that uses the shared source. |
 
 Ending tokens:
 
-- `End` is the end of the subscription: complete, error, or unsubscribe.
-- `IfEmpty` is a source that completed with no value.
-- `IfQuiet` is no value within `ms`.
+| Name | Description |
+| --- | --- |
+| `End` | is the end of the subscription: complete, error, or unsubscribe. |
+| `IfEmpty` | is a source that completed with no value. |
+| `IfQuiet` | is no value within `ms`. |
 
 Comparison suffixes:
 
-- `Same` is equal to the previous value, or to another source.
-- `Seen` is equal to any earlier value.
-- `By` compares or groups by a key.
-- `Match` satisfies a predicate.
+| Name | Description |
+| --- | --- |
+| `Same` | is equal to the previous value, or to another source. |
+| `Seen` | is equal to any earlier value. |
+| `By` | compares or groups by a key. |
+| `Match` | satisfies a predicate. |
 
 Position rule, the only one: prefix `with` attaches data, suffix `With` joins another source or literal values.
 

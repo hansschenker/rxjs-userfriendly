@@ -9,14 +9,19 @@
     body { font: 16px/1.45 system-ui, sans-serif; margin: 2rem auto; max-width: 52rem; padding: 0 1rem; }
     h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
     p { color: var(--muted); }
-    input { width: 100%; box-sizing: border-box; font: inherit; padding: 0.6rem 0.7rem; margin: 1rem 0; }
+    #q { width: 100%; box-sizing: border-box; font: inherit; padding: 0.6rem 0.7rem; margin: 1rem 0; }
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; vertical-align: top; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--line); }
     code { font-family: ui-monospace, monospace; }
     #count { font-size: 0.9rem; }
     .grammar { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
-    .grammar label { display: block; color: var(--muted); font-size: 0.9rem; margin-bottom: 0.4rem; }
-    select { width: 100%; box-sizing: border-box; font: inherit; padding: 0.3rem; }
+    .grammar .hint { font-size: 0.9rem; margin: 0 0 0.4rem; }
+    .tokens { height: 20rem; overflow: auto; border: 1px solid var(--line); padding: 0.3rem 0.6rem; }
+    .tokens .group { font-weight: 600; margin: 0.5rem 0 0.1rem; }
+    .tokens .group:first-child { margin-top: 0; }
+    .tokens label { display: block; padding: 0.1rem 0.2rem; cursor: pointer; }
+    .tokens label:hover { background: rgba(127, 127, 127, 0.12); }
+    .tokens input { width: auto; margin: 0 0.4rem 0 0; padding: 0; vertical-align: middle; }
     button { font: inherit; padding: 0.3rem 0.6rem; margin-top: 0.5rem; }
     #picked { margin: 0; padding-left: 1.1rem; }
     #picked li { margin: 0.2rem 0; }
@@ -30,8 +35,8 @@
   <input id="q" type="search" placeholder="Search names" autofocus>
   <div class="grammar">
     <div>
-      <label for="tokens">Grammar tokens. Click to select, click again to deselect. The list shows every name that uses any selected token.</label>
-      <select id="tokens" multiple size="14"></select>
+      <p class="hint">Grammar tokens. Tick one or more. The list shows every name that uses any ticked token.</p>
+      <div id="tokens" class="tokens"></div>
       <button id="clear" type="button">Clear tokens</button>
     </div>
     <ul id="picked"></ul>
@@ -246,26 +251,32 @@
     const rows = document.querySelector("#rows");
     const count = document.querySelector("#count");
     const q = document.querySelector("#q");
-    const sel = document.querySelector("#tokens");
+    const box = document.querySelector("#tokens");
     const picked = document.querySelector("#picked");
     const clear = document.querySelector("#clear");
+    const boxes = [];
 
     for (const group of [...new Set(tokens.map(t => t.group))]) {
-      const og = document.createElement("optgroup");
-      og.label = group;
-      tokens.forEach((t, i) => {
-        if (t.group !== group) return;
-        const opt = document.createElement("option");
-        opt.value = String(i);
-        opt.textContent = t.label;
-        opt.title = t.meaning;
-        og.append(opt);
-      });
-      sel.append(og);
+      const heading = document.createElement("div");
+      heading.className = "group";
+      heading.textContent = group;
+      box.append(heading);
+      const inGroup = tokens.map((t, i) => ({ t, i })).filter(x => x.t.group === group);
+      inGroup.sort((a, b) => a.t.label.localeCompare(b.t.label, "en", { sensitivity: "base" }));
+      for (const { t, i } of inGroup) {
+        const label = document.createElement("label");
+        label.title = t.meaning;
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.value = String(i);
+        boxes.push(input);
+        label.append(input, t.label);
+        box.append(label);
+      }
     }
 
     function selectedTokens() {
-      return [...sel.selectedOptions].map(o => tokens[Number(o.value)]);
+      return boxes.filter(b => b.checked).map(b => tokens[Number(b.value)]);
     }
 
     function show() {
@@ -303,18 +314,9 @@
       count.textContent = found.length + " of " + names.length + (chosen.length ? ", using " + chosen.map(t => t.label).join(" or ") : "");
     }
 
-    // Click toggles one option without needing Ctrl; the scroll position is kept.
-    sel.addEventListener("mousedown", event => {
-      if (event.target.tagName !== "OPTION") return;
-      event.preventDefault();
-      const top = sel.scrollTop;
-      event.target.selected = !event.target.selected;
-      sel.scrollTop = top;
-      show();
-    });
-    sel.addEventListener("change", show);
+    box.addEventListener("change", show);
     clear.addEventListener("click", () => {
-      for (const opt of sel.options) opt.selected = false;
+      for (const b of boxes) b.checked = false;
       show();
     });
     q.addEventListener("input", show);

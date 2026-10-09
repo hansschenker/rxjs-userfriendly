@@ -12,38 +12,56 @@ A name is a root, zero or more suffix tokens, and an argument. Every token has e
 
 Status: extended grammar, applied to the Names table and to `index.html`. The names it replaced are listed under "Renamed from the first draft".
 
-The closed token list. One line per token. The tables that follow give each token its policy, its argument, and the names it builds.
+The closed token list: 67 tokens, one line each, the same 67 the filter in `index.html` offers. The tables that follow give each token its policy, its argument, and the names it builds.
 
 Roots:
 
-- `first` and `last` are which value survives. `last` is the latest so far.
+- `first` is the first value of a window or race.
+- `last` is the latest value so far.
 - `poll` emits the latest value on a clock or a signal, if one arrived.
 - `afterQuiet` emits the latest value once the source has been quiet.
 - `later` shifts each value in time. It drops nothing.
 - `after` waits for a signal before values pass.
 - `until` completes the stream when a signal fires once.
 - `fail` errors the stream.
-- `with` adds data to each value. It does not drop values. The suffix names the data: `Gap`, `Time`, `Previous`, `Latest`.
+- `with` (prefix) adds data to each value. It does not drop values. The suffix names the data: `Gap`, `Time`, `Previous`, `Latest`.
+- `With` (suffix) joins another source or literal values to this one.
 - `batch` emits an array when the span closes.
 - `span` emits an observable while the span is open.
-- `run*` maps each value to inner work and flattens it. The suffix is the concurrency policy.
-- `flatten*` subscribes to the streams the source already emits. Same suffixes as `run*`.
+- `run` maps each value to inner work and flattens it. The suffix is the concurrency policy.
+- `flatten` subscribes to the streams the source already emits. Same suffixes as `run`.
 - `accumulate` folds values into state and emits the state after each value.
-- `fold`, `collect`, `count`, `least`, `greatest` fold everything and emit once, at completion.
+- `fold` folds everything and emits once, at completion.
+- `collect` folds everything into one array and emits once, at completion.
+- `count` counts everything and emits once, at completion.
+- `least` is the smallest value, emitted once at completion.
+- `greatest` is the largest value, emitted once at completion.
 - `as` replaces each value.
 - `keep` passes values that match.
-- `only*` passes only this: `onlyFirst`, `onlyFinal`, `onlyEnd`.
+- `only` passes only this: `onlyFirst`, `onlyFinal`, `onlyEnd`.
 - `peek` looks and changes nothing.
-- `on*` runs a callback at a lifecycle point: `onEnd`, `onError`.
+- `on` (prefix) runs a callback at a lifecycle point: `onEnd`, `onError`.
 - `shared` starts on the first subscriber and stops when the last one leaves.
 - `connected` does nothing until `connect()`, and does not stop when subscribers leave.
-- `begin` and `finish` add literal values before the first value or after the last.
+- `begin` adds literal values before the first value.
+- `finish` adds literal values after the last value.
 - `then` subscribes to the next source after this one ends.
-- `skip`, `take`, `retry`, `repeat`, `groupBy`, `isEmpty`, `observeOn`, `subscribeOn` keep their technical names.
+
+Kept technical names, already plain English and grammar-conform:
+
+- `skip` drops values.
+- `take` keeps values.
+- `retry` resubscribes after an error.
+- `repeat` resubscribes after complete.
+- `groupBy` splits into one observable per key.
+- `isEmpty` emits `true` on complete if no value arrived.
+- `observeOn` delivers on a scheduler.
+- `subscribeOn` subscribes on a scheduler.
 
 Trigger and time suffixes:
 
-- `Every` is a duration you chose, recurring. `EveryFrame` is the animation frame.
+- `Every` is a duration you chose, recurring.
+- `EveryFrame` is the animation frame as the clock.
 - `Of` is a count of values.
 - `On` is one external signal. Every firing triggers.
 - `When` is a function you supply. It returns a fresh signal per value or span, and that signal fires once.
@@ -60,7 +78,8 @@ Concurrency suffixes, one per policy of `rxjs-policy-debugger`:
 - `Latest` runs the newest inner and cancels the previous one. `keepLatest`.
 - `UnlessBusy` runs the first inner and drops new values while it runs. `ignoreWhileBusy`.
 - `Recursive` feeds every output back in.
-- `Combined` and `Paired` are the join policies of `flatten`: latest of each, or by index.
+- `Combined` is the join policy of `flatten` that takes the latest of each.
+- `Paired` is the join policy of `flatten` that pairs by index.
 
 Sharing suffixes:
 
@@ -84,6 +103,14 @@ Comparison suffixes:
 - `Match` satisfies a predicate.
 
 Position rule, the only one: prefix `with` attaches data, suffix `With` joins another source or literal values.
+
+### The filter in index.html
+
+`index.html` lists these 67 tokens as checkboxes in one alphabetical list. Each tooltip starts with the group. Ticking tokens shows every name that uses any of them, and the text search narrows that further.
+
+A name uses a token when the token appears among the camel-case words of the name, so `Every` finds `batchEvery` and `lastEveryFrame`, and `afterQuiet` finds `afterQuiet` and `afterQuietWhen`. Case does not matter, except for the position pairs: `with` and `on` match only as the first word, `With` and `On` only as a later one. Four names carry a token word without its meaning and are skipped: `observeOn` and `subscribeOn` for `On`, `finalOfEach` for `Of`, `withLatest` for `Latest`, `sameAs` for `as`.
+
+The legend, the count line, and the table follow the order the tokens were ticked. A name that uses several ticked tokens sits with the earliest one. Within a group the names are alphabetical.
 
 ### Slots
 

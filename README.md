@@ -23,21 +23,145 @@ Each name wraps one operator. `lastEvery` stays on `auditTime` and does not also
 
 ## buffer*, window*, and debounce*
 
-These three are often confused because each can be given a duration. They answer different questions.
+These three can all take a duration. They do not do the same job.
 
-`buffer*` collects. `batchEvery(1000)` keeps every value and emits one array when the second ends. Nothing is dropped. You see the values only when the batch closes.
+`buffer*` collects. Every value in the span is kept. You receive one array when the span closes, and nothing before that.
 
-`window*` splits. `spanEvery(1000)` emits an observable for that same second. Subscribe to it and values arrive as they happen. Same clock as `batchEvery`, different result: a live stream, not the closed list.
+`window*` splits. Every value is kept too, but you receive an observable when the span opens. Values come out of that observable as they arrive. Same clock as `buffer*`, different shape: a live stream, not the closed list.
 
-`debounce*` waits for quiet. `afterQuiet(1000)` emits a single value, the latest, and only after 1000 ms with no new value. Values that arrived during the wait are discarded, not collected. A steady stream faster than the duration emits nothing until it pauses.
+`debounce*` waits for quiet. It does not collect. Each new value throws away the previous one and restarts the timer. Only the latest value is emitted, and only after the quiet period. A stream that never pauses emits nothing.
 
-| | What you receive | Values kept | Clock starts |
+Same source, three results. The window is three ticks. `-` is silence.
+
+```text
+source          a--b--c--d--e--f--|
+
+batchEvery      ---------[a,b,c]---------[d,e,f]|
+spanEvery       +----------------+----------------+
+                a--b--c|         d--e--f|
+
+afterQuiet      -------------------------------f|
+```
+
+`batchEvery` emits `[a,b,c]` at the first boundary and `[d,e,f]` at the second. `spanEvery` emits two observables; the first produces `a`, `b`, `c` as they happen. `afterQuiet` emits only `f`, because every earlier value was followed by another before the quiet period ended.
+
+| | What you receive | Values kept | Clock |
 | --- | --- | --- | --- |
-| `batch*` (`buffer*`) | one `T[]` when the span closes | all of them | duration, count, or signal |
-| `span*` (`window*`) | an `Observable<T>` while the span is open | all of them, as they arrive | duration, count, or signal |
-| `afterQuiet*` (`debounce*`) | one `T` after silence | the latest only | each new source value resets it |
+| `batch*` (`buffer*`) | one `T[]` when the span closes | all | duration, count, or signal |
+| `span*` (`window*`) | an `Observable<T>` while the span is open | all, as they arrive | duration, count, or signal |
+| `afterQuiet*` (`debounce*`) | one `T` after silence | the latest only | each value resets it |
 
 `laterBy` (`delay`) is neither. It shifts every value and drops nothing.
+
+### batch* visuals
+
+`batchEvery(3)` closes an array every three ticks. `bufferTime`.
+
+```text
+source      a--b--c--d--e--f--|
+batchEvery  ---------[a,b,c]---------[d,e,f]|
+```
+
+`batchOf(2)` closes an array every two values. `bufferCount`.
+
+```text
+source   a--b--c--d--|
+batchOf  ---[a,b]---[c,d]|
+```
+
+`batchWhen(signal$)` closes when the signal emits, then starts again. `buffer`.
+
+```text
+source     a--b--c--d--e--|
+signal     ------x--------x
+batchWhen  ------[a,b]----[c,d,e]|
+```
+
+`batchUntil(fn)` asks for a new closing signal each time a batch opens. `bufferWhen`.
+
+```text
+source      a--b--c-----d--e--|
+close       ------x-----------x
+batchUntil  ------[a,b]-------[c,d,e]|
+```
+
+`batchBetween(open$, closeFn)` opens on `open$` and closes with the signal for that opening. `bufferToggle`. Overlaps stay overlaps.
+
+```text
+source        a--b--c--d--e--|
+open          x--------x
+batchBetween  ---[a,b,c]--[d,e]|
+```
+
+### span* visuals
+
+`spanEvery(3)` emits an observable per three ticks. `windowTime`. The inner line is what a subscriber of that span sees.
+
+```text
+source     a--b--c--d--e--f--|
+spanEvery  +----------------+----------------+
+           a--b--c|         d--e--f|
+```
+
+`spanOf(2)` emits an observable per two values. `windowCount`.
+
+```text
+source  a--b--c--d--|
+spanOf  +-----+-----+
+        a--b| c--d|
+```
+
+`spanWhen(signal$)` closes the current observable when the signal emits. `window`.
+
+```text
+source    a--b--c--d--e--|
+signal    ------x--------x
+spanWhen  +-----+--------+
+          a--b| c--d--e|
+```
+
+`spanUntil(fn)` asks for a fresh closing signal per span. `windowWhen`.
+
+```text
+source     a--b--c-----d--e--|
+spanUntil  +-----+-----------+
+           a--b| c-----d--e|
+```
+
+`spanBetween(open$, closeFn)` opens an observable on `open$`. `windowToggle`.
+
+```text
+source       a--b--c--d--e--|
+open         x--------x
+spanBetween  +--------+-----+
+             a--b--c| d--e|
+```
+
+### afterQuiet* visuals
+
+`afterQuiet(3)` emits the latest value only after three quiet ticks. `debounceTime`. Here `c` and `f` each get a quiet gap.
+
+```text
+source      a-b-c-----d-e-f--|
+afterQuiet  ------c----------f|
+```
+
+A source that never pauses emits nothing:
+
+```text
+source      a-b-c-d-e-f-|
+afterQuiet  -------------|
+```
+
+`afterQuietWhen(fn)` is the same wait, but each value picks the signal that ends it. `debounce`.
+
+```text
+source          a----b----c--|
+quiet for a     ------x
+quiet for b          ----x
+quiet for c               --x
+afterQuietWhen  ------a----b--c|
+```
 
 ## Names
 
@@ -131,236 +255,3 @@ These three are often confused because each can be given a duration. They answer
 | `subscribeOn(scheduler)` | `subscribeOn` | Call subscribe on that scheduler. |
 | `notices()` | `materialize` | Turn next, error, and complete into notice values. |
 | `valuesFromNotices()` | `dematerialize` | Turn notices back into notifications. |
-
-## throttle*
-
-```ts
-firstEvery(ms)                 // throttleTime(ms), leading only, the default
-firstEvery(ms, scheduler)      // throttleTime(ms, scheduler)
-firstAndLastEvery(ms)          // throttleTime(ms, scheduler, { leading: true, trailing: true })
-firstAndLastEvery(ms, scheduler)
-
-firstWhen(signal$)             // throttle(signal$), leading only
-firstWhen(signal$, { leading: true, trailing: true })
-```
-
-`firstEvery(1000)` emits the value that opens the window, then drops values until that duration ends. `firstAndLastEvery(1000)` also emits the latest value from inside the window when it ends. In RxJS 7 that trailing emit starts a new silent interval.
-
-There is no friendly alias for trailing-only `throttleTime`. That shape is `lastEvery`, and `lastEvery` wraps `auditTime`, not `throttleTime`.
-
-## sample*
-
-```ts
-pollEvery(ms)                  // sampleTime(ms)
-pollEvery(ms, scheduler)       // sampleTime(ms, scheduler)
-pollWhen(signal$)              // sample(signal$)
-```
-
-The clock is independent of the source. On each tick, emit the latest value if one arrived since the previous tick, otherwise emit nothing. `pollEvery` is not `lastEvery`: `lastEvery` opens its window from a source value and always ends with an emit.
-
-## debounce*
-
-```ts
-afterQuiet(ms)                 // debounceTime(ms)
-afterQuiet(ms, scheduler)      // debounceTime(ms, scheduler)
-afterQuietWhen(fn)             // debounce(fn)
-```
-
-Every new value resets the wait. The latest value is emitted only after `ms` with nothing new, or after the signal chosen by `fn` emits. A value every 200 ms through `afterQuiet(1000)` emits nothing until the source goes quiet.
-
-## delay*
-
-```ts
-laterBy(ms)                    // delay(ms)
-laterBy(ms, scheduler)         // delay(ms, scheduler)
-laterBy(date)                  // delay(date)
-laterWhen(fn)                  // delayWhen(fn)
-```
-
-Each value is shifted. Order is kept. Nothing is dropped. `laterBy` waits a duration or until a date. `laterWhen` lets each value pick its own delay signal. `after(signal$)` is not this family: that name is `skipUntil`.
-
-## buffer*
-
-`batch` emits `T[]` when the span closes.
-
-```ts
-batchEvery(ms)                 // bufferTime(ms)
-batchEvery(ms, { every })      // bufferTime(ms, every)
-batchEvery(ms, { max })        // bufferTime(ms, undefined, max)
-batchEvery(ms, scheduler)      // bufferTime with a scheduler
-
-batchOf(n)                     // bufferCount(n)
-batchOf(n, { every })          // bufferCount(n, every)
-
-batchWhen(signal$)             // buffer(signal$)
-batchUntil(fn)                 // bufferWhen(fn)
-batchBetween(open$, closeFn)   // bufferToggle(open$, closeFn)
-```
-
-`batchWhen` closes the current array when `signal$` emits, then starts another. `batchUntil` asks `fn` for a fresh closing signal each time a batch opens. `batchBetween` opens an array when `open$` emits and closes it when `closeFn` for that opening emits. Overlapping openings produce overlapping arrays.
-
-## window*
-
-`span` emits `Observable<T>` while the span is open. Same clocks as `batch`, different result: a live stream, not the closed list.
-
-```ts
-spanEvery(ms)                  // windowTime(ms)
-spanEvery(ms, { every })       // windowTime(ms, every)
-spanEvery(ms, { max })         // windowTime(ms, undefined, max)
-spanEvery(ms, scheduler)       // windowTime with a scheduler
-
-spanOf(n)                      // windowCount(n)
-spanOf(n, { every })           // windowCount(n, every)
-
-spanWhen(signal$)              // window(signal$)
-spanUntil(fn)                  // windowWhen(fn)
-spanBetween(open$, closeFn)    // windowToggle(open$, closeFn)
-```
-
-`spanEvery(1000)` emits an observable per second; subscribe to each one to see values as they arrive. `batchEvery(1000)` emits one array when that second ends.
-
-## Time
-
-```ts
-firstEvery(ms)          // throttleTime, leading
-lastEvery(ms)           // auditTime
-firstAndLastEvery(ms)   // throttleTime, both edges
-lastOnFrame()           // auditTime(0, animationFrameScheduler)
-
-firstWhen(signal$)      // throttle(signal$)
-lastWhen(signal$)       // audit(signal$)
-
-afterQuiet(ms)          // debounceTime
-afterQuietWhen(fn)      // debounce
-
-pollEvery(ms)           // sampleTime
-pollWhen(signal$)       // sample
-
-laterBy(ms)             // delay
-laterWhen(fn)           // delayWhen
-failAfter(ms)           // timeout
-
-withGap()               // timeInterval
-withTime()              // timestamp
-
-batchEvery(ms)          // bufferTime
-batchWhen(signal$)      // buffer
-spanEvery(ms)           // windowTime
-spanWhen(signal$)       // window
-```
-
-`lastEvery` starts its window from a source value and emits when that window ends. `pollEvery` ticks on a fixed clock and emits nothing if no new value arrived.
-
-Do not point `lastEvery` at `throttleTime(..., { leading: false, trailing: true })`. For a plain duration those two are almost the same, but they are not the same operator.
-
-## Multicast
-
-`publish*` is the manual-connect form of `share*`. RxJS 7 deprecates `publish*` in favor of `share` and `connectable`.
-
-```ts
-shared()                 // share()
-sharedLast()             // shareReplay({ bufferSize: 1, refCount: true })
-sharedRecent(n)          // shareReplay({ bufferSize: n, refCount: true })
-sharedRecent(n, ms)      // shareReplay({ bufferSize: n, windowTime: ms, refCount: true })
-sharedFinal()            // share with an AsyncSubject
-sharedUntilQuiet(ms)     // share({ resetOnRefCountZero: () => timer(ms) })
-
-connected()              // connectable(source) / publish()
-connectedLast(seed)      // connectable + BehaviorSubject / publishBehavior
-connectedRecent(n)       // connectable + ReplaySubject / publishReplay
-connectedRecent(n, ms)   // ReplaySubject buffer aged by ms / publishReplay
-connectedFinal()         // connectable + AsyncSubject / publishLast
-```
-
-`shared()` emits nothing to a subscriber who arrives late. `sharedLast()` gives that subscriber the latest value, then live values. `sharedFinal()` stays silent until the source completes, then emits that one value. `sharedUntilQuiet(ms)` keeps the upstream alive for `ms` after the last subscriber leaves.
-
-Do not point `sharedLast` at bare `shareReplay(1)`. That old signature never unsubscribes from the source. The `refCount: true` form is the one that stops when idle.
-
-`connect()` on a `connected` observable is a method. It subscribes the inner subject to the source once. A second call while that connection is open is idempotent. Unsubscribing the returned subscription disconnects every consumer at once. The `connect` operator is a different function: it ties that connection to the subscription of whatever the selector returns.
-
-## Flattening
-
-```ts
-runAll(fn)            // mergeMap
-runLatest(fn)         // switchMap
-runInOrder(fn)        // concatMap
-runUnlessBusy(fn)     // exhaustMap
-
-runAll()              // mergeAll
-runLatest()           // switchAll
-runInOrder()          // concatAll
-runUnlessBusy()       // exhaustAll
-```
-
-`runAll(fn, 2)` is the `mergeMap` concurrency limit. `switchMapTo`, `mergeMapTo`, and `concatMapTo` are retired. A constant inner is `runLatest(() => inner$)`.
-
-`again(fn)` is `expand`. It does not fit this set: it resubscribes the projection to its own output.
-
-## Values, limits, and joins
-
-```ts
-as(fn)                  // map
-keep(pred)              // filter
-peek(fn)                // tap
-onEnd(fn)               // finalize
-
-onlyFirst()             // first
-onlyFirst(pred)         // first(pred)
-onlyLast()              // last
-exactlyOne()            // single
-at(index)               // elementAt
-firstMatch(pred)        // find
-
-take(n)                 // take
-takeLast(n)             // takeLast
-takeWhile(pred)         // takeWhile
-until(signal$)          // takeUntil
-
-skip(n)                 // skip
-skipLast(n)             // skipLast
-skipWhile(pred)         // skipWhile
-after(signal$)          // skipUntil
-
-skipSame()              // distinctUntilChanged
-skipSameBy(key)         // distinctUntilKeyChanged
-skipSeen()              // distinct
-
-beginWith(...values)    // startWith
-finishWith(...values)   // endWith
-ifEmpty(value)          // defaultIfEmpty
-failIfEmpty()           // throwIfEmpty
-dropValues()            // ignoreElements
-
-withPrevious()          // pairwise
-running(fn, seed)       // scan
-fold(fn, seed)          // reduce
-collect()               // toArray
-count()                 // count
-least()                 // min
-greatest()              // max
-
-onError(fn)             // catchError
-retry(n)                // retry
-repeat(n)               // repeat
-again(fn)               // expand
-
-groupBy(key)            // groupBy
-batchOf(n)              // bufferCount
-spanOf(n)               // windowCount
-
-withLatest(other$)      // withLatestFrom
-pairedWith(other$)      // zipWith
-latestOf(other$)        // combineLatestWith
-then(other$)            // concatWith
-alongWith(other$)       // mergeWith
-firstToEmit(other$)     // raceWith
-whenAllDone(others)     // forkJoin
-
-emitOn(scheduler)       // observeOn
-subscribeOn(scheduler)  // subscribeOn
-
-notices()               // materialize
-valuesFromNotices()     // dematerialize
-```
-
-`onlyFirst()` is the `first` operator: one value, then complete. `firstEvery(ms)` is still the leading throttle. `after(signal$)` waits for a signal before letting values through. `laterBy(ms)` is still the delay.
